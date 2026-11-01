@@ -93,7 +93,7 @@ export async function createWorld(canvas, opts = {}) {
       tweens.add({ t: -delay, dur: Math.max(0.001, dur * (reduced ? 0.55 : 1)), fn, res, owner });
     });
   }
-  function cancelFor(owner) { for (const tw of [...tweens]) if (tw.owner === owner) { tweens.delete(tw); tw.res(); } }
+  function cancelFor(owner) { if (owner) owner.gen = (owner.gen || 0) + 1; for (const tw of [...tweens]) if (tw.owner === owner) { tweens.delete(tw); tw.res(); } }
   const wait = (s, owner) => tween(s, () => {}, owner);
   function stepTweens(dt) {
     for (const tw of [...tweens]) {
@@ -168,6 +168,7 @@ export async function createWorld(canvas, opts = {}) {
 
   async function dropTo(p, restPose = p.rest, spin = true) {
     p.mode = 'free';
+    const gen = p.gen;
     const s0 = p.mesh.position.clone(), q0 = p.mesh.quaternion.clone(), sc0 = p.mesh.scale.x, q1 = restPose.quat;
     const h = Math.max(0.05, s0.y - restPose.pos.y);
     const tf = Math.sqrt((2 * h) / 9) * 1.1 + 0.08;
@@ -177,11 +178,13 @@ export async function createWorld(canvas, opts = {}) {
       p.mesh.quaternion.copy(q0).slerp(q1, smooth(r));
       p.mesh.scale.setScalar(lerp(sc0, restPose.scale, smooth(r)));
     }, p);
+    if (p.gen !== gen) return;
     const x = restPose.pos.x;
     sfx('thud', x, clamp(0.35 + h * 0.25, 0.3, 0.9)); sfx('puff', x, 0.45);
     dust.puff(x, Math.max(0.05, restPose.pos.y - 0.1), restPose.pos.z, p.i === 0 ? 0.8 : 1);
     const by = restPose.pos.y;
     await tween(0.34, (r) => { p.mesh.position.y = by + 0.07 * 4 * r * (1 - r) * (1 - r * 0.4); }, p);
+    if (p.gen !== gen) return;
     p.mesh.position.copy(restPose.pos); p.mesh.quaternion.copy(restPose.quat); p.mesh.scale.setScalar(restPose.scale);
   }
 
@@ -192,7 +195,9 @@ export async function createWorld(canvas, opts = {}) {
     p.mesh.visible = true;
     p.mesh.position.set(rp.pos.x, rp.pos.y + 2.4, rp.pos.z); p.mesh.quaternion.copy(rp.quat).multiply(tmpQ2.setFromEuler(new THREE.Euler(1.5, 0.6, 0.9)));
     p.mesh.scale.setScalar(1);
+    const gen = p.gen;
     await wait(0.5, p);
+    if (p.gen !== gen) return;
     await dropTo(p);
   }
 

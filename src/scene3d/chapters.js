@@ -16,7 +16,7 @@ export const PRESETS = [
   // chapter 4: heavy and dark first; warm amber is blended in over time (see `warm`)
   mk({ spotI: 50, angle: 0.2, pen: 0.9, spotColor: 0x9a8a78, ambI: 0.04, ambColor: 0x14100d, fog: 0.12, bg: 0x0a0807, shaft: 0.12, camDist: 0.9, pitch: 0.28, ty: 0.8, sy: 4.6, sx: 0.3, env: 0.08 }),
   mk({ spotI: 85, angle: 0.26, pen: 0.85, spotColor: 0xd9d4cc, ambI: 0.12, ambColor: 0x2a2d33, fog: 0.09, shaft: 0.2, camDist: 1.0, roll: 0.012, env: 0.14 }),
-  mk({ spotI: 105, angle: 0.3, pen: 0.8, spotColor: 0xeeeae2, ambI: 0.2, ambColor: 0x353a42, fog: 0.06, shaft: 0.24, camDist: 1.04, env: 0.22 }),
+  mk({ spotI: 105, angle: 0.3, pen: 0.8, spotColor: 0xeeeae2, ambI: 0.2, ambColor: 0x353a42, fog: 0.06, shaft: 0.24, camDist: 1.1, ty: 0.3, env: 0.22 }),
 ];
 const WARM4 = { spotI: 125, angle: 0.24, spotColor: 0xe8a33d, ambI: 0.06, ambColor: 0x241a10, shaft: 0.34, binEm: 0.14, env: 0.14, fog: 0.1 };
 

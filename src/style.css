@@ -22,7 +22,7 @@ html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;backgrou
 #chapter-title{margin:.1em 0 0;font-size:clamp(2rem,9vw,3.2rem);line-height:1;color:var(--paper);transition:opacity .6s}
 #app[data-accent="1"] #chapter-title{color:var(--amber)}
 
-#ui{position:absolute;left:0;right:0;bottom:calc(var(--kb) + env(safe-area-inset-bottom) + 76px);padding:0 20px;display:flex;flex-direction:column;align-items:center;gap:12px;
+#ui{position:absolute;left:0;right:0;bottom:calc(var(--kb) + env(safe-area-inset-bottom) + 84px);padding:0 20px;display:flex;flex-direction:column;align-items:center;gap:12px;
   pointer-events:none}
 #ui > *{pointer-events:auto}
 #caption{width:min(34rem,100%);min-height:5.6em;font-size:clamp(1.12rem,4.6vw,1.45rem);line-height:1.45;text-align:center;text-wrap:balance;

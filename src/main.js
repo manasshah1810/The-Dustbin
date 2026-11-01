@@ -46,7 +46,10 @@ loadManifest(); // tiny; ready before first note
 /* ---------- world (lazy, coarse-split chunk) ---------- */
 const onSfx = (e) => audio.sfx(e.type, { pan: e.pan, gain: e.gain });
 let lowFpsHits = 0, pendingDowngrade = false;
+const KEEP = params.has('keep');                  // testing: never auto-downgrade
+let statsFrom = 0;
 function onFrameStats(fps) {
+  if (KEEP || document.hidden || performance.now() < statsFrom) return;
   if (fps < 26) lowFpsHits++; else lowFpsHits = Math.max(0, lowFpsHits - 1);
   if (lowFpsHits >= 3 && !pendingDowngrade) { pendingDowngrade = true; maybeDowngrade(); }
 }
@@ -68,10 +71,12 @@ async function buildWorld(kind) {
   return w;
 }
 async function startWorld() {
+  try { await Promise.race([document.fonts.load('600 40px Caveat'), new Promise((r) => setTimeout(r, 1500))]); } catch { /* noop */ }
   let kind = FORCE_2D || !hasWebGL() ? '2d' : '3d';
   try { world = await buildWorld(kind); }
   catch (e) { console.warn('3D unavailable, using 2D', e); kind = '2d'; world = await buildWorld('2d'); }
   worldKind = kind;
+  statsFrom = performance.now() + 6000;   // ignore shader-compile hitches at startup
   sizeWorld();
   world.setChapter(state.chapter, { instant: true });
   app.classList.add('ready');
@@ -150,8 +155,7 @@ async function enterChapter(i, { instant = false } = {}) {
   if (world) world.setChapter(i, { instant });
   audio.setChapter(i);
   setPhase(i === 0 || i === 6 ? 'playing' : 'idle');
-  if (i === 0 || i === 6) await runNote(i, tk);
-  if (i === 6 && tk === state.token) showAsk();
+  if (i === 0 || i === 6) await runNote(i, tk);   // ch6 form appears when the note ends (finishNote) or on skip
 }
 
 async function runNote(i, tk) {
@@ -213,7 +217,7 @@ async function replay() {
   if (i >= 1 && i <= 5) {
     if (state.phase === 'closed' || state.phase === 'closing') { setPhase('idle'); await openPaper(); }
     else { setPhase('playing'); runNote(i, tk); }
-  } else { setPhase('playing'); el.ask.hidden = true; runNote(i, tk).then(() => { if (i === 6 && tk === state.token) showAsk(); }); }
+  } else { setPhase('playing'); el.ask.hidden = true; runNote(i, tk); }
 }
 
 async function go(n) {

@@ -130,7 +130,7 @@ export function createPaper({ title, body, seed = 1, castShadow = true }) {
     uSize: { value: new THREE.Vector2(PAPER_W, PAPER_H) },
   };
   const tex = makePaperTexture({ title, body, seed });
-  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.14 });
   mat.onBeforeCompile = (sh) => {
     patchVertex(sh, U, true);
     sh.fragmentShader = sh.fragmentShader
