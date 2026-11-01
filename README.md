@@ -56,8 +56,8 @@ Slots: 0 opening · 1 "2 out of 30" · 2 "55 hands" · 3 "Not selected" · 4 "Sm
 
 ## How it's built
 
-- Vanilla ES modules + Vite + anime.js. No framework, no backend. A normal scrolling page: a fixed left text navbar (chapters, Back, Replay, Skip, Sound); on phones it becomes a top bar plus a bottom text row.
-- Pure black and white. Greys are only white at lower opacity. Fonts: Instrument Serif (headlines), Space Grotesk (text), Caveat (handwriting on the paper).
+- Vanilla ES modules + Vite + anime.js. No framework, no backend. A normal scrolling page: no navbar. Two quiet corner controls (light/dark, sound), a thin progress line, and "Continue / Replay" at the end of each scene. Arrow keys also move between scenes.
+- Shades of black and white only (soft charcoal and warm off-white, never #000 / #fff), with a light and a dark mode that follows the system until you pick one. Fonts: Instrument Serif (headlines), Space Grotesk (text), Caveat (handwriting on the paper).
 - Each chapter's headline slides up from a mask; the story text lights up word by word while the voice note plays (or on the reading timer when there is no audio).
 - The paper is an SVG lit by a turbulence height-map. It unfolds as you scroll through a chapter. Chapter 5 never fully unfolds.
 - Ambience and sound effects are procedural Web Audio. Nothing to download except the voice notes you add.
@@ -76,5 +76,5 @@ I did not guess these. They are written conservatively in `src/story.js`; please
 ## The portrait (your photo, two colours)
 
 Put your photo at `public/narrator/face.png` (or `face.jpg`). `src/dither.js` crops it to head and shoulders, boosts local contrast and converts it
-in the browser to a pure 1-bit black and white Atkinson dither. No file means a plain silhouette. To change the crop, edit `CROP` at the top of `src/dither.js`;
-for finer or coarser dots change the width passed to `drawPortrait` (default 190).
+in the browser to a chunky two-tone ordered dither, deliberately loose and playful rather than photographic. No file means a plain silhouette. To change the crop, edit `CROP` at the top of `src/dither.js`;
+for finer or coarser dots change the width passed to `drawPortrait` (default 104).

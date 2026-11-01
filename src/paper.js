@@ -27,14 +27,14 @@ export function createPaper(host, { seed = 1, title = '', body = '', foot = '', 
       <defs>
         <filter id="${id}" x="0" y="0" width="${W}" height="${H}" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
           <feTurbulence type="turbulence" baseFrequency="0.03 0.04" numOctaves="4" seed="${seed * 7}" result="n"/>
-          <feDiffuseLighting in="n" surfaceScale="3" diffuseConstant="1.15" lighting-color="#ffffff" result="lit">
+          <feDiffuseLighting in="n" surfaceScale="3" diffuseConstant="1.15" lighting-color="#ecebe6" result="lit">
             <feDistantLight azimuth="235" elevation="52"/>
           </feDiffuseLighting>
           <feComposite in="lit" in2="SourceAlpha" operator="in"/>
         </filter>
       </defs>
-      <polygon class="sheet" fill="#fff" filter="url(#${id})"/>
-      <g class="folds" stroke="#000" stroke-width="1" fill="none">
+      <polygon class="sheet" fill="#e6e4df" filter="url(#${id})"/>
+      <g class="folds" stroke="#222" stroke-width="1" fill="none">
         <line x1="${W / 2}" y1="6" x2="${W / 2}" y2="${H - 6}"/><line x1="6" y1="${H / 3}" x2="${W - 6}" y2="${H / 3}"/><line x1="6" y1="${(H * 2) / 3}" x2="${W - 6}" y2="${(H * 2) / 3}"/>
       </g>
     </svg>

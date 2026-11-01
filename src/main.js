@@ -8,7 +8,7 @@ import { drawPortrait } from './dither.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const story = $('#story'), chapList = $('#chapters');
+const story = $('#story');
 const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const words = (t) => t.trim().split(/\s+/).map((w) => `<span class="w">${esc(w)}</span> `).join('');
 const mask = (t) => t.split(' ').map((w) => `<span class="ln"><span class="in">${esc(w)}</span></span>`).join(' ');
@@ -16,13 +16,9 @@ const mask = (t) => t.split(' ').map((w) => `<span class="ln"><span class="in">$
 /* ---------- build ---------- */
 const secs = [];
 CHAPTERS.forEach((c, i) => {
-  const li = document.createElement('li');
-  li.innerHTML = `<a href="#c${i}" data-go="${i}"><span class="n">${String(i).padStart(2, '0')}</span>${esc(c.label)}</a>`;
-  chapList.appendChild(li);
-
   const s = document.createElement('section');
   s.className = 'chap' + (c.paperTitle ? ' has-paper' : '') + (i === 0 ? ' hero' : '') + (i === 6 ? ' ask' : '');
-  s.id = 'c' + i; s.dataset.i = i;
+  s.id = 'c' + i; s.dataset.i = i; s.dataset.n = String(i).padStart(2, '0');
   s.setAttribute('aria-labelledby', 'h' + i);
   const Tag = i === 0 ? 'h1' : 'h2';
   s.innerHTML = `
@@ -32,9 +28,10 @@ CHAPTERS.forEach((c, i) => {
       <div class="cues">${c.cues.map((t) => `<p class="cue">${words(t)}</p>`).join('')}</div>
       ${c.decision ? `<p class="decision"><span>${UI.decisionLabel}</span>${esc(c.decision)}</p>` : ''}
       ${c.placeholder ? `<p class="note">${esc(c.placeholder)}</p>` : ''}
+      ${i < 6 ? `<p class="next"><button type="button" class="link soft" data-next>Continue ↓</button><button type="button" class="link soft" data-replay>Replay</button></p>` : ''}
       ${i === 0 ? `<p class="begin-row"><button type="button" id="b-begin" class="link">Begin with sound →</button><span class="or">or just scroll</span></p>` : ''}
     </div>
-    <div class="side">${i === 0 ? '<figure class="portrait"><canvas id="portrait" role="img" aria-label="A black and white dithered portrait of the author"></canvas></figure>' : ''}</div>`;
+    <div class="side">${i === 0 ? '<figure class="portrait"><canvas id="portrait" role="img" aria-label="A chunky pixel-drawing of the author, black and white"></canvas><span class="bubble" aria-hidden="true">that’s me</span><svg class="doodle" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 4l5 17 17 5-17 5-5 17-5-17-17-5 17-5z"/></svg></figure>' : ''}</div>`;
   story.appendChild(s);
   const sec = { el: s, i, c, paper: null, played: false, cueEls: [...s.querySelectorAll('.cue')], intro: false };
   if (c.paperTitle) {
@@ -56,7 +53,7 @@ CHAPTERS.forEach((c, i) => {
   s.paper.setU(1);
   s.paper.el.classList.add('live');
   side.insertAdjacentHTML('beforeend', `
-    <svg class="bin" viewBox="0 0 160 190" aria-hidden="true" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <svg class="bin" viewBox="0 0 160 190" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
       <path d="M22 44h116M58 44V32h44v12"/><path d="M30 44l10 134h80l10-134"/><path d="M62 62l4 100M80 62v100M98 62l-4 100"/>
     </svg>`);
   $('.col', s.el).insertAdjacentHTML('beforeend', `
@@ -70,26 +67,24 @@ CHAPTERS.forEach((c, i) => {
 
 /* ---------- state ---------- */
 let begun = false, soundOn = false, cur = 0, ctrl = null, startTimer = 0;
-const navLinks = [...chapList.querySelectorAll('a')];
 const bSound = $('#b-sound');
 
 function go(i, instant) {
   i = Math.max(0, Math.min(secs.length - 1, i));
   secs[i].el.scrollIntoView({ behavior: reduce || instant ? 'auto' : 'smooth', block: 'start' });
-  document.body.classList.remove('idx-open'); $('#idx-toggle').setAttribute('aria-expanded', 'false');
 }
 
 /* ---------- text animation ---------- */
 function intro(sec, force) {
   if (sec.intro && !force) return; sec.intro = true;
-  const ins = sec.el.querySelectorAll('.head .in'), rest = sec.el.querySelectorAll('.cue, .decision, .note, .begin-row, #ask-form, .eyebrow');
+  const ins = sec.el.querySelectorAll('.head .in'), rest = sec.el.querySelectorAll('.cue, .decision, .note, .begin-row, #ask-form, .eyebrow, .next');
   if (reduce) { ins.forEach((e) => { e.style.transform = 'none'; }); rest.forEach((e) => { e.style.opacity = 1; e.style.transform = 'none'; }); return; }
   anime.remove([...ins, ...rest]);
   anime.set(ins, { translateY: '110%' }); anime.set(rest, { opacity: 0, translateY: 18 });
   anime({ targets: ins, translateY: ['110%', '0%'], duration: 950, easing: 'cubicBezier(.19,1,.22,1)', delay: anime.stagger(70) });
   anime({ targets: rest, opacity: [0, 1], translateY: [18, 0], duration: 800, easing: 'cubicBezier(.19,1,.22,1)', delay: anime.stagger(90, { start: 260 }) });
 }
-if (!reduce) { document.querySelectorAll('.head .in').forEach((e) => (e.style.transform = 'translateY(110%)')); document.querySelectorAll('.cue,.decision,.note,.begin-row,#ask-form,.eyebrow').forEach((e) => (e.style.opacity = 0)); }
+if (!reduce) { document.querySelectorAll('.head .in').forEach((e) => (e.style.transform = 'translateY(110%)')); document.querySelectorAll('.cue,.decision,.note,.begin-row,#ask-form,.eyebrow,.next').forEach((e) => (e.style.opacity = 0)); }
 
 /* ---------- voice + karaoke ---------- */
 function sameText(sec, cues) {
@@ -142,8 +137,7 @@ function setActive(i) {
   if (i === cur && secs[i].el.classList.contains('active')) return;
   cur = i;
   secs.forEach((s) => s.el.classList.toggle('active', s.i === i));
-  navLinks.forEach((a, k) => { a.classList.toggle('on', k === i); if (k === i) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
-  $('#b-back').disabled = i === 0; $('#b-skip').disabled = i === secs.length - 1;
+  $('#progress i').style.transform = `scaleY(${(i + 1) / secs.length})`;
   audio.setChapter(i);
   intro(secs[i]);
   stopAll();
@@ -174,23 +168,24 @@ addEventListener('resize', frame);
 
 /* ---------- controls ---------- */
 document.addEventListener('click', (e) => {
-  const a = e.target.closest('[data-go]');
-  if (a) { e.preventDefault(); go(+a.dataset.go); }
+  if (e.target.closest('[data-next]')) go(cur + 1);
+  if (e.target.closest('[data-replay]')) replay();
 });
-$('#b-back').addEventListener('click', () => go(cur - 1));
-$('#b-skip').addEventListener('click', () => go(cur + 1));
-$('#b-replay').addEventListener('click', () => {
+function replay() {
   const s = secs[cur]; s.el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   intro(s, true); if (begun) { s._ptr = 0; speak(cur); }
-});
+}
 bSound.addEventListener('click', () => { if (!begun) begin(); else { setSound(!soundOn); } });
 $('#b-begin').addEventListener('click', begin);
-$('#idx-toggle').addEventListener('click', () => {
-  const o = document.body.classList.toggle('idx-open'); $('#idx-toggle').setAttribute('aria-expanded', o);
-});
+/* theme: follows the system until the visitor picks one */
+const root = document.documentElement, bTheme = $('#b-theme');
+function setTheme(t) { root.dataset.theme = t; bTheme.textContent = t === 'dark' ? 'Light' : 'Dark'; document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#121212' : '#ecebe7'; }
+let saved = null; try { saved = localStorage.getItem('dustbin-theme'); } catch { /* private mode */ }
+setTheme(saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+bTheme.addEventListener('click', () => { const t = root.dataset.theme === 'dark' ? 'light' : 'dark'; setTheme(t); try { localStorage.setItem('dustbin-theme', t); } catch { /* noop */ } });
 addEventListener('keydown', (e) => {
   if (/input|textarea/i.test(e.target.tagName)) return;
-  if (e.key === 'ArrowRight' || e.key === 'j') go(cur + 1);
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' && false || e.key === 'j') go(cur + 1);
   if (e.key === 'ArrowLeft' || e.key === 'k') go(cur - 1);
 });
 document.addEventListener('visibilitychange', () => { document.hidden ? audio.suspend() : audio.resume(); if (ctrl) document.hidden ? ctrl.pause() : ctrl.resume(); });
@@ -221,6 +216,7 @@ document.addEventListener('visibilitychange', () => { document.hidden ? audio.su
 drawPortrait($('#portrait')).then(() => {
   const f = $('.portrait');
   if (reduce) return;
-  anime({ targets: f, clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], duration: 2600, easing: 'steps(34)' });
+  anime({ targets: f, clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], duration: 2200, easing: 'steps(22)', complete: () => { f.style.clipPath = 'none'; } });
+  anime({ targets: '.portrait .doodle', rotate: 360, duration: 9000, easing: 'linear', loop: true });
 });
 setActive(0); frame();
