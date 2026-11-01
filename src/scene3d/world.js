@@ -52,13 +52,13 @@ export async function createWorld(canvas, opts = {}) {
   const camera = new THREE.PerspectiveCamera(50, 9 / 16, 0.05, 60);
   const lights = createLights(scene, quality);
   const floor = createFloor(quality); scene.add(floor.group);
-  const bin = createBin(quality); scene.add(bin.group);
+  const bin = createBin(quality, envRT ? envRT.texture : null); scene.add(bin.group);
   const dust = createDust(scene, quality, reduced);
 
   // ---------- papers ----------
   const papers = [null];
   const mkPaperObj = (i, spec, rest) => {
-    const pp = createPaper({ title: spec.title, body: spec.body, seed: spec.seed, castShadow: true });
+    const pp = createPaper({ title: spec.title, body: spec.body, seed: spec.seed, castShadow: true, quality });
     const o = {
       i, ...pp, rest: {
         pos: new THREE.Vector3(...rest.p), quat: new THREE.Quaternion().setFromEuler(new THREE.Euler(...rest.r)), scale: 1,

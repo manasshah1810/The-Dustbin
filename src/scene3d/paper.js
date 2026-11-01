@@ -80,9 +80,30 @@ export function makePaperTexture({ title = '', body = '', seed = 1 } = {}) {
   return tex;
 }
 
+const FACET = /* glsl */ `
+vec3 h33(vec3 p){ p = fract(p*vec3(0.1031,0.1030,0.0973)); p += dot(p, p.yxz+33.33); return fract((p.xxy+p.yxx)*p.zyx); }
+// planar facets blended by proximity: h = height, g = slope (normal-ish), cr = crease strength (0..1)
+void facet(vec3 q, float seed, float sharp, out float h, out vec3 g, out float cr){
+  vec3 b = floor(q - 0.5);
+  float ws = 0.0, hs = 0.0, w1 = 0.0, w2 = 0.0; vec3 gs = vec3(0.0);
+  for(int i=0;i<8;i++){
+    vec3 c = b + vec3(float(i&1), float((i>>1)&1), float((i>>2)&1));
+    vec3 r = h33(c + seed);
+    vec3 ctr = c + 0.5 + (r - 0.5) * 0.6;
+    vec3 n = normalize(h33(c + seed + 19.7) * 2.0 - 1.0);
+    vec3 d = q - ctr;
+    float w = exp(-sharp * dot(d, d));
+    ws += w; hs += w * 0.4 * dot(n, d); gs += w * n;
+    if (w > w1) { w2 = w1; w1 = w; } else if (w > w2) w2 = w;
+  }
+  h = hs / ws; g = gs / ws; cr = clamp(w2 / max(w1, 1e-4), 0.0, 1.0);
+}
+`;
+
 const DISP = /* glsl */ `
 uniform float uCrumple; uniform float uCurl; uniform float uSeed; uniform vec2 uSize;
 ${glslNoise}
+${FACET}
 vec3 paperDisp(vec3 p, out float shade){
   vec2 q = p.xy / uSize; vec2 uv = q + 0.5; float c = uCrumple;
   vec3 f = p;
@@ -90,57 +111,88 @@ vec3 paperDisp(vec3 p, out float shade){
   float corner = pow(abs(q.x)*2.0, 2.0) * (0.35 + 0.65*(0.5 - q.y));
   f.z += uCurl * (0.11*corner + 0.05*pow(e, 4.0));
   f.z += sin(q.x*3.0 + uSeed) * 0.014 * (1.0 - c);
-  float w  = fbm3(vec3(p.xy*4.5, uSeed)) - 0.5;
-  float w2 = vnoise(vec3(p.xy*12.0, uSeed+3.0)) - 0.5;
-  f.z += (w*0.36 + w2*0.09) * c;
+  float hA, cA; vec3 gA; facet(vec3(p.xy*7.0, uSeed), uSeed, 5.0, hA, gA, cA);
+  float hB, cB; vec3 gB; facet(vec3(p.xy*16.0, uSeed+4.0), uSeed, 5.0, hB, gB, cB);
+  float w = hA*0.55, w2 = hB*0.35;
+  f.z += (w*0.9 + w2*0.4) * (c*0.9 + 0.12);
   f.xy *= 1.0 - 0.42*c*c;
   float th = uv.x*6.28318; float ph = (0.04 + 0.92*uv.y)*3.14159;
   vec3 s = vec3(sin(ph)*cos(th), cos(ph), sin(ph)*sin(th));
-  float n = fbm3(s*3.0 + uSeed); float n2 = vnoise(s*9.0 + uSeed*2.0);
-  vec3 b = s * 0.17 * (0.7 + 0.7*n + 0.2*n2);
+  float s1, s2, s3; vec3 g1, g2, g3;
+  facet(s*2.5 + uSeed, uSeed, 7.0, s1, g1, cA);
+  facet(s*5.5 + uSeed*2.0, uSeed, 6.0, s2, g2, cB);
+  facet(s*11.0 + uSeed*3.0, uSeed, 6.0, s3, g3, cB);
+  float rad = 0.17 + 0.2*s1 + 0.1*s2 + 0.035*s3;
+  vec3 b = s * rad;
   float t = smoothstep(0.25, 1.0, c);
-  float shF = clamp(1.0 + w*1.5*c, 0.55, 1.08);
-  float shB = clamp(0.5 + 0.9*n + 0.35*n2, 0.45, 1.1);
+  float shF = clamp(1.0 + w*1.0*c, 0.6, 1.08);
+  float shB = clamp(0.95 + 1.2*(s1 + 0.5*s2), 0.55, 1.1);
   shade = mix(shF, shB, t);
   return mix(f, b, t);
 }`;
 
 function patchVertex(sh, U, withNormal) {
   Object.assign(sh.uniforms, U);
-  sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${DISP}\nvarying float vShade;`);
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${DISP}\nvarying float vShade; varying vec3 vObjP; varying float vT; varying vec3 vNM0; varying vec3 vNM1; varying vec3 vNM2;`);
   if (withNormal) {
     sh.vertexShader = sh.vertexShader.replace('#include <beginnormal_vertex>', `
       float sh0, sh1, sh2;
       vec3 pd0 = paperDisp(position, sh0);
-      vec3 pd1 = paperDisp(position + vec3(0.012,0.0,0.0), sh1);
-      vec3 pd2 = paperDisp(position + vec3(0.0,0.012,0.0), sh2);
+      vec3 pd1 = paperDisp(position + vec3(0.006,0.0,0.0), sh1);
+      vec3 pd2 = paperDisp(position + vec3(0.0,0.006,0.0), sh2);
       vec3 objectNormal = normalize(cross(pd1 - pd0, pd2 - pd0));
-      vShade = sh0;`);
+      vShade = sh0; vObjP = pd0; vNM0 = normalMatrix[0]; vNM1 = normalMatrix[1]; vNM2 = normalMatrix[2]; vT = smoothstep(0.25, 1.0, uCrumple);`);
     sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = pd0;');
   } else {
     sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'float shx; vec3 transformed = paperDisp(position, shx);');
   }
 }
 
-export function createPaper({ title, body, seed = 1, castShadow = true }) {
-  if (!sharedGeo) sharedGeo = new THREE.PlaneGeometry(PAPER_W, PAPER_H, 48, 64);
+export function createPaper({ title, body, seed = 1, castShadow = true, quality = 'mid' }) {
+  if (!sharedGeo) sharedGeo = quality === 'low' ? new THREE.PlaneGeometry(PAPER_W, PAPER_H, 40, 54) : new THREE.PlaneGeometry(PAPER_W, PAPER_H, 72, 96);
   geoUsers++;
   const U = {
     uCrumple: { value: 1 }, uCurl: { value: 0 }, uSeed: { value: seed * 3.7 },
     uSize: { value: new THREE.Vector2(PAPER_W, PAPER_H) },
   };
   const tex = makePaperTexture({ title, body, seed });
-  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.14 });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.1 });
   mat.onBeforeCompile = (sh) => {
     patchVertex(sh, U, true);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vShade;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= vShade;');
+      .replace('#include <common>', `#include <common>\nvarying float vShade; varying vec3 vObjP; varying float vT; varying vec3 vNM0; varying vec3 vNM1; varying vec3 vNM2;\n${glslNoise}\n${FACET}
+vec3 bumpN(vec3 vp, vec3 n, vec2 dH, float fd){
+  vec3 sx = dFdx(-vp), sy = dFdy(-vp);
+  vec3 r1 = cross(sy, n), r2 = cross(n, sx);
+  float det = dot(sx, r1) * fd;
+  vec3 gr = sign(det) * (dH.x * r1 + dH.y * r2);
+  return normalize(abs(det) * n - gr);
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+float fh, fc; vec3 fg;
+{
+  // creases: object-space (flat) or sphere-ish (crumpled) lookup
+  vec3 sp = vObjP.xyz;
+  float ps = mix(14.0, 24.0, vT);
+  facet(sp * ps + vec3(3.0), 2.0, 4.5, fh, fg, fc);
+  float fiber = vnoise(vec3(sp.xy*60.0, 1.0)) * 0.6 + vnoise(vec3(sp.x*90.0, sp.y*14.0, 2.0)) * 0.4;
+  float crease = pow(fc, 3.0);
+  float stress = mix(0.15, 1.0, vT);
+  diffuseColor.rgb *= vShade * (1.0 - 0.24*crease*stress);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.97,0.94,0.88), 0.2*smoothstep(0.55,1.0,fc)*stress*(0.5+fiber));
+  diffuseColor.rgb *= 0.94 + 0.1*fiber;
+}`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+{
+  vec3 gv = vNM0 * fg.x + vNM1 * fg.y + vNM2 * fg.z;
+  vec3 tg = gv - dot(gv, normal) * normal;
+  normal = normalize(normal - tg * mix(0.5, 1.15, vT));
+}`);
   };
-  mat.customProgramCacheKey = () => 'paper';
+  mat.customProgramCacheKey = () => 'paper2';
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide });
   depth.onBeforeCompile = (sh) => patchVertex(sh, U, false);
-  depth.customProgramCacheKey = () => 'paperDepth';
+  depth.customProgramCacheKey = () => 'paperDepth2';
   const mesh = new THREE.Mesh(sharedGeo, mat);
   mesh.customDepthMaterial = depth;
   mesh.castShadow = castShadow; mesh.receiveShadow = true; mesh.frustumCulled = false;
