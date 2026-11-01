@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#1C1917">
+<meta name="theme-color" content="#1534B8">
 <title>The Dustbin</title>
 <meta name="description" content="A voice-driven story. My failures, crumpled up in a dustbin, taken out one by one.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231C1917'/%3E%3Cpath d='M9 11h14l-2 15H11z' fill='%23F3EAD7'/%3E%3C/svg%3E">
@@ -12,6 +12,7 @@
 <div id="app" data-phase="gate">
   <div id="stage" aria-hidden="true"></div>
   <div class="vignette" aria-hidden="true"></div>
+  <div id="narrator" aria-hidden="true"></div>
 
   <header id="top">
     <p id="chapter-label" class="label"></p>
@@ -20,7 +21,7 @@
 
   <main id="ui" aria-live="off">
     <div id="paper-hint" class="hint" hidden></div>
-    <div id="caption" aria-hidden="true"></div>
+    <div class="bubble"><div id="caption" aria-hidden="true"></div></div>
     <p id="caption-sr" class="sr-only" aria-live="polite"></p>
     <div id="decision" hidden><span class="label" id="decision-label"></span><p id="decision-text"></p></div>
     <form id="ask" hidden autocomplete="off">

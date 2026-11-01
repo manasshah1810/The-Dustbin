@@ -1,4 +1,5 @@
 import './style.css';
+import anime from 'animejs/lib/anime.es.js';
 import { CHAPTERS, GATE_LINES, UI } from './story.js';
 import { audio } from './audio/engine.js';
 import { loadManifest, unlockVoice, playSlot, stopVoice, setVoiceMuted } from './voice.js';
@@ -99,6 +100,17 @@ const worldReady = startWorld();
 const state = { chapter: 0, phase: 'gate', muted: false, play: null, token: 0 };
 const setPhase = (p) => { state.phase = p; app.dataset.phase = p; renderControls(); };
 
+/* ---------- narrator (3D, lazy) ---------- */
+let narrator = null, emoList = null;
+(async () => {
+  try {
+    const m = await import('./narrator.js');
+    emoList = m.CHAPTER_EMOTION;
+    narrator = await m.createNarrator($('narrator'), { quality, reducedMotion: reduced });
+    narrator.setEmotion(emoList[state.chapter] || 'shy');
+  } catch (e) { console.warn('narrator off', e); $('narrator').hidden = true; }
+})();
+
 const el = { prev: $('b-prev'), replay: $('b-replay'), skip: $('b-skip'), mute: $('b-mute'), next: $('b-next'),
   caption: $('caption'), sr: $('caption-sr'), decision: $('decision'), ask: $('ask'), gone: $('gone'), hint: $('paper-hint') };
 
@@ -124,24 +136,29 @@ function renderControls() {
 let capIndex = -1, capWords = [];
 function renderCue(i, cue) {
   capIndex = i;
+  if (!reduced) anime({ targets: el.caption, scale: [0.94, 1], translateY: [10, 0], duration: 420, easing: 'easeOutBack' });
   el.caption.innerHTML = '';
   capWords = cue.words.map((w) => { const s = document.createElement('span'); s.className = 'w'; s.textContent = w.w + ' '; el.caption.appendChild(s); return { t: w.t, s }; });
   el.sr.textContent = cue.text;
 }
 function onTick(t, cues) {
+  if (narrator) narrator.setSpeaking(true);
   let idx = -1;
   for (let i = 0; i < cues.length; i++) if (cues[i].start <= t) idx = i;
   if (idx < 0) return;
   if (idx !== capIndex) renderCue(idx, cues[idx]);
   for (const w of capWords) if (t >= w.t) w.s.classList.add('on');
 }
-function clearCaption() { capIndex = -1; capWords = []; el.caption.innerHTML = ''; el.sr.textContent = ''; }
+function clearCaption() { if (narrator) narrator.setSpeaking(false); capIndex = -1; capWords = []; el.caption.innerHTML = ''; el.sr.textContent = ''; }
 
 /* ---------- chapter flow ---------- */
 function setHeader(i) {
   const ch = CHAPTERS[i];
   $('chapter-label').textContent = i === 0 ? '' : i === 6 ? 'Your turn' : `${i} of 5`;
-  $('chapter-title').textContent = ch.title;
+  const tt = $('chapter-title'); tt.setAttribute('aria-label', ch.title); tt.textContent = '';
+  [...ch.title].forEach((c) => { const sp = document.createElement('span'); sp.setAttribute('aria-hidden', 'true'); sp.style.display = 'inline-block'; sp.style.whiteSpace = 'pre'; sp.textContent = c; tt.appendChild(sp); });
+  if (!reduced) anime({ targets: '#chapter-title span', translateY: [14, 0], opacity: [0, 1], delay: anime.stagger(28), duration: 520, easing: 'easeOutCubic' });
+  if (narrator && emoList) narrator.setEmotion(emoList[i] || 'shy');
   app.dataset.accent = ch.accent ? '1' : '0';
   document.title = i === 0 ? 'The Dustbin' : `${ch.label} · The Dustbin`;
 }
@@ -170,6 +187,7 @@ async function runNote(i, tk) {
 
 function finishNote(i) {
   audio.duck(false);
+  if (narrator) { narrator.setSpeaking(false); narrator.nod(); }
   state.play = null;
   const ch = CHAPTERS[i];
   if (i >= 1 && i <= 5) {
@@ -244,6 +262,7 @@ async function throwIt(ev) {
   input.blur();
   el.ask.hidden = true; setPhase('closing');
   input.value = '';            // held only in this page's memory; nothing is stored or sent
+  if (narrator) { narrator.setEmotion('warm'); narrator.nod(); }
   await world.submitUserPaper(text);
   el.gone.hidden = false;
   el.sr.textContent = UI.gone;
@@ -299,7 +318,7 @@ addEventListener('keydown', (e) => {
 });
 
 /* ---------- parallax: pointer + gyro ---------- */
-function setPar(x, y) { if (world) world.setParallax(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y))); }
+function setPar(x, y) { if (narrator) narrator.setLook(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y))); if (world) world.setParallax(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y))); }
 addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || e.pointerType === 'pen') setPar((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1); });
 function enableMotion() {
   if (reduced) return;

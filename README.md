@@ -69,3 +69,12 @@ I did not guess these. They are written conservatively in `src/story.js`; please
 2. Chapter 3: "I cried, wanting just one" (brief said "cried while playing for just one"), and the "explainable" remark about the DataHack win was left out.
 3. Chapter 5: the closing placeholder wording.
 4. Chapter 6: the spoken intro is my wording, not a fact.
+
+
+## The narrator (3D, dithered)
+
+A small 3D bust tells the story: it blinks, follows the pointer/tilt, moves its mouth while a note plays and changes expression per chapter
+(`src/narrator.js`, one Three.js canvas rendered with an ordered-dither shader; animation by anime.js).
+
+**Use your own face:** put a front-facing portrait at `public/narrator/face.png` (a cut-out with transparent background works best; `face.jpg` also works).
+It is converted to the same two-ink dither at runtime, with head-turn parallax. With no file the built-in cartoon bust is used.
