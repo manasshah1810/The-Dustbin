@@ -56,10 +56,12 @@ Slots: 0 opening · 1 "2 out of 30" · 2 "55 hands" · 3 "Not selected" · 4 "Sm
 
 ## How it's built
 
-- Vanilla ES modules + Vite + three.js. No framework. The 3D scene is a separate lazy chunk, so the first paint is a tiny shell.
-- Everything is procedural: geometry, textures, and all sound design (Web Audio: room tone, wind over rock, paper rustle, dirt, thuds). No models or images to download.
-- Quality tiers (low / mid / high) from cores, memory, DPR, save-data, and reduced-motion. Sustained low FPS steps the tier down; WebGL failure switches to a 2D version with the same audio and captions.
-- Accessibility: captions always on, screen-reader live region, keyboard control, reduced motion respected, nothing flashes.
+- Vanilla ES modules + Vite + anime.js. No framework, no backend. A normal scrolling page: a fixed left text navbar (chapters, Back, Replay, Skip, Sound); on phones it becomes a top bar plus a bottom text row.
+- Pure black and white. Greys are only white at lower opacity. Fonts: Instrument Serif (headlines), Space Grotesk (text), Caveat (handwriting on the paper).
+- Each chapter's headline slides up from a mask; the story text lights up word by word while the voice note plays (or on the reading timer when there is no audio).
+- The paper is an SVG lit by a turbulence height-map. It unfolds as you scroll through a chapter. Chapter 5 never fully unfolds.
+- Ambience and sound effects are procedural Web Audio. Nothing to download except the voice notes you add.
+- Accessibility: real headings and landmarks, keyboard (arrow keys / j k), screen-reader friendly text, reduced motion respected, nothing flashes.
 
 ## Copy to double-check (voice-dictation garbles in the original brief)
 
@@ -71,10 +73,8 @@ I did not guess these. They are written conservatively in `src/story.js`; please
 4. Chapter 6: the spoken intro is my wording, not a fact.
 
 
-## The narrator (3D, dithered)
+## The portrait (your photo, two colours)
 
-A small 3D bust tells the story: it blinks, follows the pointer/tilt, moves its mouth while a note plays and changes expression per chapter
-(`src/narrator.js`, one Three.js canvas rendered with an ordered-dither shader; animation by anime.js).
-
-**Use your own face:** put a front-facing portrait at `public/narrator/face.png` (a cut-out with transparent background works best; `face.jpg` also works).
-It is converted to the same two-ink dither at runtime, with head-turn parallax. With no file the built-in cartoon bust is used.
+Put your photo at `public/narrator/face.png` (or `face.jpg`). `src/dither.js` crops it to head and shoulders, boosts local contrast and converts it
+in the browser to a pure 1-bit black and white Atkinson dither. No file means a plain silhouette. To change the crop, edit `CROP` at the top of `src/dither.js`;
+for finer or coarser dots change the width passed to `drawPortrait` (default 190).

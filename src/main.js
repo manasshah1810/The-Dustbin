@@ -1,390 +1,226 @@
-import './style.css';
 import anime from 'animejs/lib/anime.es.js';
-import { CHAPTERS, GATE_LINES, UI } from './story.js';
-import { audio } from './audio/engine.js';
-import { loadManifest, unlockVoice, playSlot, stopVoice, setVoiceMuted } from './voice.js';
+import './style.css';
+import { CHAPTERS, UI } from './story.js';
+import { playSlot, stopVoice, unlockVoice, setVoiceMuted } from './voice.js';
+import audio from './audio/engine.js';
+import { createPaper } from './paper.js';
+import { drawPortrait } from './dither.js';
 
-const $ = (id) => document.getElementById(id);
-const app = $('app'), stage = $('stage');
-const params = new URLSearchParams(location.search);
-const PREVIEW = params.has('preview');           // skips tap-to-begin (testing). Also: ?preview&ch=3
-const FORCE_2D = params.get('mode') === '2d';
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s, r = document) => r.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const story = $('#story'), chapList = $('#chapters');
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const words = (t) => t.trim().split(/\s+/).map((w) => `<span class="w">${esc(w)}</span> `).join('');
+const mask = (t) => t.split(' ').map((w) => `<span class="ln"><span class="in">${esc(w)}</span></span>`).join(' ');
 
-/* ---------- capability detection ---------- */
-function detectQuality() {
-  const q = params.get('q');
-  if (q === 'low' || q === 'mid' || q === 'high') return q;
-  const cores = navigator.hardwareConcurrency || 4;
-  const mem = navigator.deviceMemory || 4;
-  const save = navigator.connection && navigator.connection.saveData;
-  const dpr = window.devicePixelRatio || 1;
-  if (save || cores <= 2 || mem <= 2) return 'low';
-  if (cores <= 4 || mem <= 3 || (dpr >= 3 && cores <= 6) || reduced) return 'mid';
-  return 'high';
-}
-function hasWebGL() {
-  try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; }
-}
-let quality = detectQuality();
-let world = null, worldKind = null;
+/* ---------- build ---------- */
+const secs = [];
+CHAPTERS.forEach((c, i) => {
+  const li = document.createElement('li');
+  li.innerHTML = `<a href="#c${i}" data-go="${i}"><span class="n">${String(i).padStart(2, '0')}</span>${esc(c.label)}</a>`;
+  chapList.appendChild(li);
 
-/* ---------- UI text ---------- */
-$('begin').textContent = UI.begin; $('begin-sub').textContent = UI.beginSub;
-$('decision-label').textContent = UI.decisionLabel;
-$('ask-q').textContent = CHAPTERS[6].question; $('ask-input').placeholder = UI.placeholderInput;
-$('privacy').textContent = UI.privacy; $('ask-btn').textContent = UI.throwIt;
-$('gone').textContent = UI.gone;
-$('ask-input').setAttribute('aria-labelledby', 'ask-q');
-$('dots').innerHTML = CHAPTERS.map(() => '<li></li>').join('');
-
-/* ---------- gate: words arrive before any touch ---------- */
-const gl = $('gate-lines');
-gl.innerHTML = GATE_LINES.map((l) => `<div>${l}</div>`).join('');
-if (reduced) [...gl.children].forEach((c) => { c.style.opacity = 1; });
-else [...gl.children].forEach((c, i) => anime({ targets: c, opacity: [0, 1], translateY: [26, 0], filter: ['blur(14px)', 'blur(0px)'], letterSpacing: ['0.12em', '0em'], delay: 700 + i * 1900, duration: 1700, easing: 'easeOutExpo' }));
-loadManifest(); // tiny; ready before first note
-
-/* ---------- world (lazy, coarse-split chunk) ---------- */
-const onSfx = (e) => audio.sfx(e.type, { pan: e.pan, gain: e.gain });
-let lowFpsHits = 0, pendingDowngrade = false;
-const KEEP = params.has('keep');                  // testing: never auto-downgrade
-let statsFrom = 0;
-function onFrameStats(fps) {
-  if (KEEP || document.hidden || performance.now() < statsFrom) return;
-  if (fps < 26) lowFpsHits++; else lowFpsHits = Math.max(0, lowFpsHits - 1);
-  if (lowFpsHits >= 3 && !pendingDowngrade) { pendingDowngrade = true; maybeDowngrade(); }
-}
-async function buildWorld(kind) {
-  const opts = { quality, reducedMotion: reduced, onSfx, onFrameStats };
-  let w;
-  if (kind === '3d') {
-    const canvas = document.createElement('canvas');
-    canvas.setAttribute('aria-hidden', 'true');
-    stage.replaceChildren(canvas);
-    const mod = await import('./scene3d/world.js');
-    w = await mod.createWorld(canvas, opts);
-    w.kind = '3d';
-  } else {
-    stage.replaceChildren();
-    const mod = await import('./fallback2d.js');
-    w = await mod.createWorld(stage, opts);
+  const s = document.createElement('section');
+  s.className = 'chap' + (c.paperTitle ? ' has-paper' : '') + (i === 0 ? ' hero' : '') + (i === 6 ? ' ask' : '');
+  s.id = 'c' + i; s.dataset.i = i;
+  s.setAttribute('aria-labelledby', 'h' + i);
+  const Tag = i === 0 ? 'h1' : 'h2';
+  s.innerHTML = `
+    <div class="col">
+      <p class="eyebrow">${i === 0 ? 'A story, in my own voice' : String(i).padStart(2, '0') + ' / 06'}</p>
+      <${Tag} class="head" id="h${i}" aria-label="${esc(c.title)}"><span aria-hidden="true">${mask(c.title)}</span></${Tag}>
+      <div class="cues">${c.cues.map((t) => `<p class="cue">${words(t)}</p>`).join('')}</div>
+      ${c.decision ? `<p class="decision"><span>${UI.decisionLabel}</span>${esc(c.decision)}</p>` : ''}
+      ${c.placeholder ? `<p class="note">${esc(c.placeholder)}</p>` : ''}
+      ${i === 0 ? `<p class="begin-row"><button type="button" id="b-begin" class="link">Begin with sound →</button><span class="or">or just scroll</span></p>` : ''}
+    </div>
+    <div class="side">${i === 0 ? '<figure class="portrait"><canvas id="portrait" role="img" aria-label="A black and white dithered portrait of the author"></canvas></figure>' : ''}</div>`;
+  story.appendChild(s);
+  const sec = { el: s, i, c, paper: null, played: false, cueEls: [...s.querySelectorAll('.cue')], intro: false };
+  if (c.paperTitle) {
+    sec.paper = createPaper($('.side', s), {
+      seed: i + 2, cap: c.neverUnfold ? 0.72 : 1,
+      title: c.paperTitle, body: '', foot: c.decision || '',
+    });
+    if (c.neverUnfold) sec.paper.el.classList.add('tremble');
   }
-  return w;
-}
-async function startWorld() {
-  try { await Promise.race([document.fonts.load('600 40px Caveat'), new Promise((r) => setTimeout(r, 1500))]); } catch { /* noop */ }
-  let kind = FORCE_2D || !hasWebGL() ? '2d' : '3d';
-  try { world = await buildWorld(kind); }
-  catch (e) { console.warn('3D unavailable, using 2D', e); kind = '2d'; world = await buildWorld('2d'); }
-  worldKind = kind;
-  statsFrom = performance.now() + 6000;   // ignore shader-compile hitches at startup
-  sizeWorld();
-  world.setChapter(state.chapter, { instant: true });
-  app.classList.add('ready');
-}
-const DESKTOP = matchMedia('(min-aspect-ratio: 11/10) and (min-width: 760px)');
-function sizeWorld() {
-  if (!world) return;
-  world.resize(stage.clientWidth || innerWidth, stage.clientHeight || innerHeight, Math.min(devicePixelRatio || 1, 2));
-  if (world.setViewShift) world.setViewShift(DESKTOP.matches ? 0.15 : 0);
-}
-async function maybeDowngrade() {
-  if (!['idle', 'closed', 'ask', 'thrown', 'gate'].includes(state.phase)) { setTimeout(maybeDowngrade, 2500); return; }
-  const next = quality === 'high' ? 'mid' : quality === 'mid' ? 'low' : null;
-  try {
-    world.dispose();
-    if (next) { quality = next; world = await buildWorld('3d'); worldKind = '3d'; }
-    else { world = await buildWorld('2d'); worldKind = '2d'; }
-    sizeWorld(); world.setChapter(state.chapter, { instant: true }); lowFpsHits = 0; pendingDowngrade = false;
-    if (state.chapter === 5 && state.phase !== 'gate') world.setTremble(false);
-  } catch (e) { console.warn(e); }
-}
-const worldReady = startWorld();
+  secs.push(sec);
+});
+
+/* chapter 6: the bin */
+(() => {
+  const s = secs[6], side = $('.side', s.el);
+  side.innerHTML = '';
+  const sheetHost = document.createElement('div'); sheetHost.className = 'sheet-host'; side.appendChild(sheetHost);
+  s.paper = createPaper(sheetHost, { seed: 11, title: '', body: '' });
+  s.paper.setU(1);
+  s.paper.el.classList.add('live');
+  side.insertAdjacentHTML('beforeend', `
+    <svg class="bin" viewBox="0 0 160 190" aria-hidden="true" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M22 44h116M58 44V32h44v12"/><path d="M30 44l10 134h80l10-134"/><path d="M62 62l4 100M80 62v100M98 62l-4 100"/>
+    </svg>`);
+  $('.col', s.el).insertAdjacentHTML('beforeend', `
+    <form id="ask-form" autocomplete="off">
+      <label for="ask-input" class="sr-only">${esc(CHAPTERS[6].question)}</label>
+      <textarea id="ask-input" rows="3" maxlength="140" placeholder="${esc(UI.placeholderInput)}"></textarea>
+      <div class="row"><button type="submit" class="link" id="ask-go">${UI.throwIt} →</button><span class="priv">${UI.privacy}</span></div>
+    </form>
+    <p id="gone" class="gone" hidden><span>${UI.gone}</span> <button type="button" class="link" id="again">${UI.again}</button></p>`);
+})();
 
 /* ---------- state ---------- */
-const state = { chapter: 0, phase: 'gate', muted: false, play: null, token: 0 };
-const setPhase = (p) => { state.phase = p; app.dataset.phase = p; renderControls(); };
+let begun = false, soundOn = false, cur = 0, ctrl = null, startTimer = 0;
+const navLinks = [...chapList.querySelectorAll('a')];
+const bSound = $('#b-sound');
 
-/* ---------- narrator (3D, lazy) ---------- */
-let narrator = null, emoList = null;
-(async () => {
-  try {
-    const m = await import('./narrator.js');
-    emoList = m.CHAPTER_EMOTION;
-    narrator = await m.createNarrator($('narrator'), { quality, reducedMotion: reduced });
-    narrator.setEmotion(emoList[state.chapter] || 'shy');
-  } catch (e) { console.warn('narrator off', e); $('narrator').hidden = true; }
-})();
-
-const el = { prev: $('b-prev'), replay: $('b-replay'), skip: $('b-skip'), mute: $('b-mute'), next: $('b-next'),
-  caption: $('caption'), sr: $('caption-sr'), decision: $('decision'), ask: $('ask'), gone: $('gone'), hint: $('paper-hint') };
-
-function renderControls() {
-  const { chapter: c, phase: p } = state;
-  const story = c >= 1 && c <= 5;
-  el.prev.disabled = c === 0 || p === 'gate' || p === 'opening';
-  el.replay.hidden = !(p === 'playing' || p === 'read' || p === 'closed' || p === 'thrown') || c === 6 && p !== 'playing';
-  el.skip.hidden = p !== 'playing';
-  el.next.hidden = false;
-  el.next.disabled = false;
-  let label = UI.next, action = 'next';
-  if (p === 'idle' && story) { label = UI.openPaper; action = 'open'; }
-  else if (p === 'idle' || p === 'opening' || p === 'playing' || p === 'ask') { el.next.hidden = true; }
-  else if (p === 'thrown') { label = UI.again; action = 'restart'; }
-  else if (p === 'closed' && c === 6) { el.next.hidden = true; }
-  el.next.textContent = label; el.next.dataset.action = action;
-  el.hint.hidden = !(p === 'idle' && story);
-  [...$('dots').children].forEach((d, i) => d.classList.toggle('on', i === c));
+function go(i, instant) {
+  i = Math.max(0, Math.min(secs.length - 1, i));
+  secs[i].el.scrollIntoView({ behavior: reduce || instant ? 'auto' : 'smooth', block: 'start' });
+  document.body.classList.remove('idx-open'); $('#idx-toggle').setAttribute('aria-expanded', 'false');
 }
 
-/* ---------- captions ---------- */
-let capIndex = -1, capWords = [];
-function renderCue(i, cue) {
-  capIndex = i;
-  if (!reduced) anime({ targets: el.caption, scale: [0.94, 1], translateY: [10, 0], duration: 420, easing: 'easeOutBack' });
-  el.caption.innerHTML = '';
-  capWords = cue.words.map((w) => { const s = document.createElement('span'); s.className = 'w'; s.textContent = w.w + ' '; el.caption.appendChild(s); return { t: w.t, s }; });
-  el.sr.textContent = cue.text;
+/* ---------- text animation ---------- */
+function intro(sec, force) {
+  if (sec.intro && !force) return; sec.intro = true;
+  const ins = sec.el.querySelectorAll('.head .in'), rest = sec.el.querySelectorAll('.cue, .decision, .note, .begin-row, #ask-form, .eyebrow');
+  if (reduce) { ins.forEach((e) => { e.style.transform = 'none'; }); rest.forEach((e) => { e.style.opacity = 1; e.style.transform = 'none'; }); return; }
+  anime.remove([...ins, ...rest]);
+  anime.set(ins, { translateY: '110%' }); anime.set(rest, { opacity: 0, translateY: 18 });
+  anime({ targets: ins, translateY: ['110%', '0%'], duration: 950, easing: 'cubicBezier(.19,1,.22,1)', delay: anime.stagger(70) });
+  anime({ targets: rest, opacity: [0, 1], translateY: [18, 0], duration: 800, easing: 'cubicBezier(.19,1,.22,1)', delay: anime.stagger(90, { start: 260 }) });
 }
-function onTick(t, cues) {
-  if (narrator) narrator.setSpeaking(true);
-  let idx = -1;
-  for (let i = 0; i < cues.length; i++) if (cues[i].start <= t) idx = i;
-  if (idx < 0) return;
-  if (idx !== capIndex) renderCue(idx, cues[idx]);
-  for (const w of capWords) if (t >= w.t) w.s.classList.add('on');
-}
-function clearCaption() { if (narrator) narrator.setSpeaking(false); capIndex = -1; capWords = []; el.caption.innerHTML = ''; el.sr.textContent = ''; }
+if (!reduce) { document.querySelectorAll('.head .in').forEach((e) => (e.style.transform = 'translateY(110%)')); document.querySelectorAll('.cue,.decision,.note,.begin-row,#ask-form,.eyebrow').forEach((e) => (e.style.opacity = 0)); }
 
-/* ---------- chapter flow ---------- */
-function setHeader(i) {
-  const ch = CHAPTERS[i];
-  $('chapter-label').textContent = i === 0 ? '' : i === 6 ? 'Your turn' : `${i} of 5`;
-  const tt = $('chapter-title'); tt.setAttribute('aria-label', ch.title); tt.textContent = '';
-  [...ch.title].forEach((c) => { const sp = document.createElement('span'); sp.setAttribute('aria-hidden', 'true'); sp.style.display = 'inline-block'; sp.style.whiteSpace = 'pre'; sp.textContent = c; tt.appendChild(sp); });
-  if (!reduced) anime({ targets: '#chapter-title span', translateY: [14, 0], opacity: [0, 1], delay: anime.stagger(28), duration: 520, easing: 'easeOutCubic' });
-  if (narrator && emoList) narrator.setEmotion(emoList[i] || 'shy');
-  app.dataset.accent = ch.accent ? '1' : '0';
-  document.title = i === 0 ? 'The Dustbin' : `${ch.label} · The Dustbin`;
+/* ---------- voice + karaoke ---------- */
+function sameText(sec, cues) {
+  return cues.length === sec.c.cues.length && cues.every((c, k) => c.text === sec.c.cues[k]);
 }
+function clearListening(sec) { sec.el.classList.remove('listening'); sec.el.querySelectorAll('.w').forEach((w) => w.classList.remove('on')); }
+function stopAll() { clearTimeout(startTimer); if (ctrl) { ctrl.stop(); ctrl = null; } stopVoice(); secs.forEach(clearListening); document.body.classList.remove('speaking'); }
 
-function sweep() {
-  if (reduced) return;
-  const sw = $('sweep'); sw.style.opacity = 1;
-  anime({ targets: sw, translateX: ['-100%', '100%'], duration: 1100, easing: 'easeInOutQuad', complete: () => { sw.style.opacity = 0; } });
-}
-async function enterChapter(i, { instant = false } = {}) {
-  if (!instant && i > 0) sweep();
-  const tk = ++state.token;
-  stopVoice(); clearCaption();
-  el.decision.hidden = true; el.ask.hidden = true; el.gone.hidden = true;
-  state.chapter = i; state.play = null;
-  setHeader(i);
-  if (world) world.setChapter(i, { instant });
-  audio.setChapter(i);
-  setPhase(i === 0 || i === 6 ? 'playing' : 'idle');
-  if (i === 0 || i === 6) await runNote(i, tk);   // ch6 form appears when the note ends (finishNote) or on skip
-}
-
-async function runNote(i, tk) {
-  audio.duck(true);
-  const ctl = await playSlot(i, {
-    onTick,
-    onEnd: () => { if (tk === state.token) finishNote(i); },
+async function speak(i) {
+  stopAll();
+  if (!begun) return;
+  const sec = secs[i];
+  const my = (speak.n = (speak.n || 0) + 1);
+  const c = await playSlot(i, {
+    onTick(t, cues) {
+      if (!sec._flat) return;
+      const f = sec._flat; let p = sec._ptr || 0;
+      while (p < f.length && f[p].t <= t) { f[p].el.classList.add('on'); p++; }
+      sec._ptr = p;
+    },
+    onEnd() { if (speak.n === my) { clearListening(sec); document.body.classList.remove('speaking'); ctrl = null; } },
   });
-  if (tk !== state.token) { if (ctl) ctl.stop(); return; }
-  state.play = ctl;
+  if (!c || speak.n !== my) { if (c) c.stop(); return; }
+  ctrl = c;
+  if (!sameText(sec, c.cues)) { // real transcript differs from the default copy: show the transcript
+    const box = $('.cues', sec.el);
+    box.innerHTML = c.cues.map((q) => `<p class="cue" style="opacity:1">${words(q.text)}</p>`).join('');
+    sec.cueEls = [...box.querySelectorAll('.cue')];
+  }
+  sec._flat = []; sec._ptr = 0;
+  c.cues.forEach((q, a) => { const ws = sec.cueEls[a] ? sec.cueEls[a].querySelectorAll('.w') : []; q.words.forEach((w, b) => ws[b] && sec._flat.push({ t: w.t, el: ws[b] })); });
+  sec.el.classList.add('listening'); document.body.classList.add('speaking');
 }
 
-function finishNote(i) {
-  audio.duck(false);
-  if (narrator) { narrator.setSpeaking(false); narrator.nod(); }
-  state.play = null;
-  const ch = CHAPTERS[i];
-  if (i >= 1 && i <= 5) {
-    el.decision.hidden = false;
-    $('decision-text').textContent = ch.decision + (ch.placeholder ? ' ' + ch.placeholder : '');
-    el.sr.textContent = `${UI.decisionLabel}: ${ch.decision}`;
-    setPhase('read');
-  } else if (i === 0) setPhase('closed');
-  else showAsk();
-}
-
-async function openPaper() {
-  const i = state.chapter; const tk = state.token;
-  if (state.phase !== 'idle') return;
-  setPhase('opening');
-  audio.sfx('tap', { gain: 0.5 });
-  if (i === 5) world.setTremble(true);
-  const opened = world.openPaper(i);
-  // voice starts as the paper rises; do not wait for the unfold to finish
-  setTimeout(() => { if (tk === state.token && state.phase === 'opening') { setPhase('playing'); runNote(i, tk); } }, reduced ? 100 : 900);
-  await opened;
-}
-
-async function closePaperIf() {
-  if (state.chapter >= 1 && state.chapter <= 5 && world) { state.chapter === 5 && world.setTremble(false); await world.closePaper(); }
-}
-
-async function skip() {
-  if (state.phase !== 'playing') return;
-  const i = state.chapter, tk = state.token;
-  stopVoice(); audio.duck(false); state.play = null;
-  if (i >= 1 && i <= 5) {
-    clearCaption(); el.decision.hidden = true;
-    setPhase('closing'); await closePaperIf();
-    if (tk === state.token) setPhase('closed');
-  } else if (i === 0) { clearCaption(); setPhase('closed'); }
-  else { clearCaption(); showAsk(); }
-}
-
-async function replay() {
-  const i = state.chapter;
-  stopVoice(); clearCaption(); el.decision.hidden = true;
-  if (i === 6 && state.phase === 'thrown') return restart();
-  const tk = ++state.token;
-  if (i >= 1 && i <= 5) {
-    if (state.phase === 'closed' || state.phase === 'closing') { setPhase('idle'); await openPaper(); }
-    else { setPhase('playing'); runNote(i, tk); }
-  } else { setPhase('playing'); el.ask.hidden = true; runNote(i, tk); }
-}
-
-async function go(n) {
-  if (n < 0 || n > 6 || state.phase === 'opening' || state.phase === 'closing') return;
-  const tk = ++state.token; stopVoice(); audio.duck(false);
-  setPhase('closing');
-  el.decision.hidden = true; clearCaption(); el.ask.hidden = true;
-  await closePaperIf();
-  if (tk !== state.token) return;
-  enterChapter(n);
-}
-
-function showAsk() {
-  clearCaption();
-  el.ask.hidden = false; el.gone.hidden = true;
-  setPhase('ask');
-}
-
-async function throwIt(ev) {
-  ev.preventDefault();
-  const input = $('ask-input');
-  const text = input.value.trim().slice(0, 120);
-  if (!text) { input.focus(); return; }
-  input.blur();
-  el.ask.hidden = true; setPhase('closing');
-  input.value = '';            // held only in this page's memory; nothing is stored or sent
-  if (narrator) { narrator.setEmotion('warm'); narrator.nod(); }
-  await world.submitUserPaper(text);
-  el.gone.hidden = false;
-  el.sr.textContent = UI.gone;
-  setPhase('thrown');
-}
-
-function restart() { el.gone.hidden = true; ++state.token; enterChapter(0); }
-
-/* ---------- begin ---------- */
-let begun = false;
 async function begin() {
-  if (begun) return; begun = true;
-  $('begin').disabled = true;
-  const p = audio.unlock();                       // inside the gesture
-  unlockVoice(audio.getContext(), audio.getVoiceBus());
-  enableMotion();
-  await p; await worldReady;
-  audio.sfx('tap', { gain: 0.4 });
-  const start = PREVIEW ? Math.min(6, Math.max(0, parseInt(params.get('ch') || '0', 10) || 0)) : 0;
-  enterChapter(start);
+  if (begun) return;
+  begun = true; soundOn = true;
+  try { await audio.unlock(); unlockVoice(audio.getContext(), audio.getVoiceBus()); } catch { /* sound is optional */ }
+  setSound(true); audio.setChapter(cur);
+  const b = $('#b-begin'); if (b) { b.textContent = 'Listening'; b.disabled = true; }
+  speak(cur);
 }
-$('begin').addEventListener('click', begin);
+function setSound(on) {
+  soundOn = on; bSound.textContent = on ? 'Sound on' : 'Sound off'; bSound.setAttribute('aria-pressed', on);
+  audio.setMuted(!on); setVoiceMuted(!on);
+}
+
+/* ---------- active chapter ---------- */
+function setActive(i) {
+  if (i === cur && secs[i].el.classList.contains('active')) return;
+  cur = i;
+  secs.forEach((s) => s.el.classList.toggle('active', s.i === i));
+  navLinks.forEach((a, k) => { a.classList.toggle('on', k === i); if (k === i) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+  $('#b-back').disabled = i === 0; $('#b-skip').disabled = i === secs.length - 1;
+  audio.setChapter(i);
+  intro(secs[i]);
+  stopAll();
+  if (begun) startTimer = setTimeout(() => speak(i), 450);
+}
+const io = new IntersectionObserver((es) => {
+  es.forEach((e) => { if (e.isIntersecting) setActive(+e.target.dataset.i); });
+}, { rootMargin: '-45% 0px -50% 0px' });
+secs.forEach((s) => io.observe(s.el));
+const ioIntro = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) intro(secs[+e.target.dataset.i]); }), { threshold: 0.15 });
+secs.forEach((s) => ioIntro.observe(s.el));
+
+/* ---------- paper unfolds with scroll ---------- */
+let tick = false;
+function frame() {
+  tick = false;
+  const vh = innerHeight;
+  secs.forEach((s) => {
+    if (!s.paper || s.i === 6) return;
+    const r = s.el.getBoundingClientRect();
+    if (r.bottom < -100 || r.top > vh + 100) return;
+    const p = (vh * 0.55 - r.top) / Math.max(1, r.height * 0.6);
+    s.paper.setU(Math.max(0, Math.min(1, p)));
+  });
+}
+addEventListener('scroll', () => { if (!tick) { tick = true; requestAnimationFrame(frame); } }, { passive: true });
+addEventListener('resize', frame);
 
 /* ---------- controls ---------- */
-el.next.addEventListener('click', () => {
-  const a = el.next.dataset.action;
-  if (a === 'open') openPaper(); else if (a === 'next') go(state.chapter + 1); else if (a === 'restart') restart();
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-go]');
+  if (a) { e.preventDefault(); go(+a.dataset.go); }
 });
-el.prev.addEventListener('click', () => go(state.chapter - 1));
-el.skip.addEventListener('click', skip);
-el.replay.addEventListener('click', replay);
-el.mute.addEventListener('click', () => {
-  state.muted = !state.muted;
-  audio.setMuted(state.muted); setVoiceMuted(state.muted);
-  el.mute.setAttribute('aria-pressed', String(state.muted));
-  el.mute.setAttribute('aria-label', state.muted ? UI.unmute : UI.mute);
-  $('mute-ic').textContent = state.muted ? '✕' : '♪';
+$('#b-back').addEventListener('click', () => go(cur - 1));
+$('#b-skip').addEventListener('click', () => go(cur + 1));
+$('#b-replay').addEventListener('click', () => {
+  const s = secs[cur]; s.el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  intro(s, true); if (begun) { s._ptr = 0; speak(cur); }
 });
-$('ask').addEventListener('submit', throwIt);
-// tap the stage to open the paper
-stage.addEventListener('click', () => { if (state.phase === 'idle' && state.chapter >= 1 && state.chapter <= 5) openPaper(); });
-
+bSound.addEventListener('click', () => { if (!begun) begin(); else { setSound(!soundOn); } });
+$('#b-begin').addEventListener('click', begin);
+$('#idx-toggle').addEventListener('click', () => {
+  const o = document.body.classList.toggle('idx-open'); $('#idx-toggle').setAttribute('aria-expanded', o);
+});
 addEventListener('keydown', (e) => {
-  if (e.target.closest && e.target.closest('textarea,input')) return;
-  if (state.phase === 'gate') return;
-  const k = e.key;
-  if (k === 'ArrowRight') go(state.chapter + 1);
-  else if (k === 'ArrowLeft') go(state.chapter - 1);
-  else if (k === 'm' || k === 'M') el.mute.click();
-  else if (k === 's' || k === 'S') skip();
-  else if (k === 'r' || k === 'R') replay();
-  else if ((k === 'Enter' || k === ' ') && !e.target.closest('button')) { e.preventDefault(); if (!el.next.hidden) el.next.click(); }
+  if (/input|textarea/i.test(e.target.tagName)) return;
+  if (e.key === 'ArrowRight' || e.key === 'j') go(cur + 1);
+  if (e.key === 'ArrowLeft' || e.key === 'k') go(cur - 1);
 });
+document.addEventListener('visibilitychange', () => { document.hidden ? audio.suspend() : audio.resume(); if (ctrl) document.hidden ? ctrl.pause() : ctrl.resume(); });
 
-/* ---------- parallax: pointer + gyro ---------- */
-function setPar(x, y) { if (narrator) narrator.setLook(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y))); if (world) world.setParallax(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y))); }
-addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || e.pointerType === 'pen') setPar((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1); });
-function enableMotion() {
-  if (reduced) return;
-  const attach = () => addEventListener('deviceorientation', (e) => {
-    if (e.gamma == null) return;
-    setPar(e.gamma / 25, ((e.beta || 45) - 45) / 25);
-  }, { passive: true });
-  try {
-    const D = window.DeviceOrientationEvent;
-    if (D && typeof D.requestPermission === 'function') D.requestPermission().then((r) => { if (r === 'granted') attach(); }).catch(() => {});
-    else if (D) attach();
-  } catch { /* noop */ }
-}
-
-/* ---------- viewport, visibility ---------- */
-new ResizeObserver(sizeWorld).observe(stage);
-if (window.visualViewport) {
-  const upd = () => { const v = visualViewport; document.documentElement.style.setProperty('--kb', `${Math.max(0, Math.round(innerHeight - v.height - v.offsetTop))}px`); };
-  visualViewport.addEventListener('resize', upd); visualViewport.addEventListener('scroll', upd);
-}
-document.addEventListener('visibilitychange', () => {
-  const hidden = document.hidden;
-  if (world) world.setPaused(hidden);
-  if (hidden) { audio.suspend(); if (state.play) state.play.pause(); }
-  else { audio.resume(); if (state.play) state.play.resume(); }
-});
-
-renderControls();
-if (PREVIEW) { $('begin').textContent = 'Starting…'; setTimeout(begin, 400); }  // preview: no tap needed (audio may stay locked until first touch)
-if (PREVIEW) addEventListener('pointerdown', () => audio.unlock(), { once: true });
-window.__dustbin = { state, get world() { return world; }, go, get kind() { return worldKind; } };
-
-
-/* ---------- polish: grain, cursor light, magnetic + springy buttons ---------- */
-(function polish() {
-  try {
-    const c = document.createElement('canvas'); c.width = c.height = 128;
-    const g = c.getContext('2d'), d = g.createImageData(128, 128);
-    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
-    g.putImageData(d, 0, 0);
-    $('grain').style.backgroundImage = `url(${c.toDataURL()})`;
-  } catch { /* grain is optional */ }
-  if (reduced) return;
-  addEventListener('pointermove', (e) => {
-    if (e.pointerType === 'touch') return;
-    app.style.setProperty('--mx', e.clientX + 'px'); app.style.setProperty('--my', e.clientY + 'px');
-  }, { passive: true });
-  document.querySelectorAll('.btn').forEach((b) => {
-    b.addEventListener('pointermove', (e) => {
-      if (e.pointerType !== 'mouse') return;
-      const r = b.getBoundingClientRect();
-      anime({ targets: b, translateX: (e.clientX - r.left - r.width / 2) * 0.18, translateY: (e.clientY - r.top - r.height / 2) * 0.28, duration: 260, easing: 'easeOutQuad' });
-    });
-    b.addEventListener('pointerleave', () => anime({ targets: b, translateX: 0, translateY: 0, duration: 700, easing: 'easeOutElastic(1, .5)' }));
-    b.addEventListener('pointerdown', () => anime({ targets: b, scale: [0.93, 1], duration: 650, easing: 'easeOutElastic(1, .55)' }));
+/* ---------- chapter 6: throw it in the bin ---------- */
+(() => {
+  const s = secs[6], form = $('#ask-form'), input = $('#ask-input'), gone = $('#gone');
+  const side = $('.side', s.el), sheet = s.paper;
+  input.addEventListener('input', () => { sheet.setText({ body: input.value }); });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!input.value.trim()) { input.focus(); return; }
+    input.disabled = true; $('#ask-go').disabled = true;
+    audio.sfx('crumple');
+    const o = { u: 1 };
+    const finish = () => { audio.sfx('thud'); gone.hidden = false; anime({ targets: gone, opacity: [0, 1], duration: 600, easing: 'linear' }); input.value = ''; sheet.setText({ body: '' }); };
+    if (reduce) { sheet.el.style.opacity = 0; return finish(); }
+    anime({ targets: o, u: 0, duration: 900, easing: 'easeInOutQuad', update: () => sheet.setU(o.u) });
+    anime({ targets: sheet.el, translateY: [0, 190], opacity: [1, 0], duration: 700, delay: 950, easing: 'easeInQuad', complete: finish });
+  });
+  $('#again').addEventListener('click', () => {
+    gone.hidden = true; input.disabled = false; $('#ask-go').disabled = false;
+    sheet.el.style.transform = ''; sheet.el.style.opacity = 1; sheet.setU(0); sheet.setU(1); anime.set(sheet.el, { translateY: 0 }); go(0);
   });
 })();
+
+/* ---------- portrait ---------- */
+drawPortrait($('#portrait')).then(() => {
+  const f = $('.portrait');
+  if (reduce) return;
+  anime({ targets: f, clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], duration: 2600, easing: 'steps(34)' });
+});
+setActive(0); frame();
