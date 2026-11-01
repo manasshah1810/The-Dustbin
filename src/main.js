@@ -4,7 +4,6 @@ import { CHAPTERS, UI } from './story.js';
 import { playSlot, stopVoice, unlockVoice, setVoiceMuted } from './voice.js';
 import audio from './audio/engine.js';
 import { createPaper } from './paper.js';
-import { drawPortrait } from './dither.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -23,15 +22,25 @@ CHAPTERS.forEach((c, i) => {
   const Tag = i === 0 ? 'h1' : 'h2';
   s.innerHTML = `
     <div class="col">
-      <p class="eyebrow">${i === 0 ? 'A story, in my own voice' : String(i).padStart(2, '0') + ' / 06'}</p>
+      <p class="eyebrow code"><span class="cm">// ${i === 0 ? 'a story, in my own voice' : 'chapter ' + String(i).padStart(2, '0') + ' of 06'}</span></p>
+      <p class="code line"><span class="kw">const</span> <span class="id">${esc(c.key.replace(/-/g, '_'))}</span> <span class="op">=</span> <span class="br">{</span></p>
       <${Tag} class="head" id="h${i}" aria-label="${esc(c.title)}"><span aria-hidden="true">${mask(c.title)}</span></${Tag}>
       <div class="cues">${c.cues.map((t) => `<p class="cue">${words(t)}</p>`).join('')}</div>
-      ${c.decision ? `<p class="decision"><span>${UI.decisionLabel}</span>${esc(c.decision)}</p>` : ''}
+      ${c.decision ? `<p class="decision"><span class="code"><span class="cm">// ${UI.decisionLabel.toLowerCase()}</span></span>${esc(c.decision)}</p>` : ''}
       ${c.placeholder ? `<p class="note">${esc(c.placeholder)}</p>` : ''}
-      ${i < 6 ? `<p class="next"><button type="button" class="link soft" data-next>Continue ↓</button><button type="button" class="link soft" data-replay>Replay</button></p>` : ''}
-      ${i === 0 ? `<p class="begin-row"><button type="button" id="b-begin" class="link">Begin with sound →</button><span class="or">or just scroll</span></p>` : ''}
+      ${i < 6 ? `<p class="next"><button type="button" class="link soft" data-next>next();</button><button type="button" class="link soft" data-replay>replay();</button></p>` : ''}
+      <p class="code line close"><span class="br">}</span><span class="op">;</span></p>
+      ${i === 0 ? `<p class="begin-row"><button type="button" id="b-begin" class="link">begin<span class="op">(</span><span class="str">&quot;with sound&quot;</span><span class="op">)</span><span class="op">;</span></button><span class="or code"><span class="cm">// or just scroll</span></span></p>` : ''}
     </div>
-    <div class="side">${i === 0 ? '<figure class="portrait"><canvas id="portrait" role="img" aria-label="A chunky pixel-drawing of the author, black and white"></canvas><span class="bubble" aria-hidden="true">that’s me</span><svg class="doodle" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 4l5 17 17 5-17 5-5 17-5-17-17-5 17-5z"/></svg></figure>' : ''}</div>`;
+    <div class="side">${i === 0 ? `<figure class="portrait"><svg id="portrait" viewBox="0 0 200 230" role="img" aria-label="A friendly cartoon of the author: round glasses, short dark hair, a smile">
+<path d="M18 230c4-38 34-52 82-52s78 14 82 52z" fill="var(--cardink)"/>
+<rect x="84" y="150" width="32" height="36" rx="12" fill="#c9c6bf"/>
+<ellipse cx="100" cy="102" rx="60" ry="66" fill="#d6d3cc" stroke="var(--cardink)" stroke-width="5"/>
+<path d="M38 96C30 40 70 20 104 22c38 2 66 22 58 76-6-24-20-38-30-40-22 10-60 12-82-2-8 8-10 22-12 40z" fill="var(--cardink)"/>
+<g fill="none" stroke="var(--cardink)" stroke-width="5" stroke-linecap="round"><circle cx="72" cy="104" r="19" fill="#ecebe6" fill-opacity=".55"/><circle cx="128" cy="104" r="19" fill="#ecebe6" fill-opacity=".55"/><path d="M91 102q9-6 18 0M53 98l-14-4M147 98l14-4"/><path d="M76 136q24 22 48 0" stroke-width="6"/></g>
+<g class="eyes" fill="var(--cardink)"><circle cx="72" cy="106" r="5"/><circle cx="128" cy="106" r="5"/></g>
+<path d="M60 128q-6 4-4 10M140 128q6 4 4 10" fill="none" stroke="var(--cardink)" stroke-width="3" stroke-linecap="round" opacity=".5"/>
+</svg><span class="bubble" aria-hidden="true">that’s me</span><svg class="doodle" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 4l5 17 17 5-17 5-5 17-5-17-17-5 17-5z"/></svg></figure>` : ''}</div>`;
   story.appendChild(s);
   const sec = { el: s, i, c, paper: null, played: false, cueEls: [...s.querySelectorAll('.cue')], intro: false };
   if (c.paperTitle) {
@@ -41,6 +50,11 @@ CHAPTERS.forEach((c, i) => {
     });
     if (c.neverUnfold) sec.paper.el.classList.add('tremble');
   }
+  const g = ['{ }', ';', ':', '( )', '=>', '[ ]', '/>', '&&', '//', '=== ', '<>', '"…"', 'fn', '0;'];
+  let sd = i * 97 + 13; const rr = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
+  const glyphs = document.createElement('div'); glyphs.className = 'glyphs'; glyphs.setAttribute('aria-hidden', 'true');
+  for (let k = 0; k < 16; k++) { const e = document.createElement('i'); e.textContent = g[(rr() * g.length) | 0]; e.style.cssText = `left:${(rr() * 96).toFixed(1)}%;top:${(rr() * 94).toFixed(1)}%;font-size:${(18 + rr() * 38) | 0}px;animation-delay:${(-rr() * 14).toFixed(1)}s;animation-duration:${(11 + rr() * 10).toFixed(1)}s`; glyphs.appendChild(e); }
+  s.appendChild(glyphs);
   secs.push(sec);
 });
 
@@ -60,7 +74,7 @@ CHAPTERS.forEach((c, i) => {
     <form id="ask-form" autocomplete="off">
       <label for="ask-input" class="sr-only">${esc(CHAPTERS[6].question)}</label>
       <textarea id="ask-input" rows="3" maxlength="140" placeholder="${esc(UI.placeholderInput)}"></textarea>
-      <div class="row"><button type="submit" class="link" id="ask-go">${UI.throwIt} →</button><span class="priv">${UI.privacy}</span></div>
+      <div class="row"><button type="submit" class="link" id="ask-go">throwInBin<span class="op">(</span><span class="op">)</span><span class="op">;</span></button><span class="priv">${UI.privacy}</span></div>
     </form>
     <p id="gone" class="gone" hidden><span>${UI.gone}</span> <button type="button" class="link" id="again">${UI.again}</button></p>`);
 })();
@@ -77,14 +91,14 @@ function go(i, instant) {
 /* ---------- text animation ---------- */
 function intro(sec, force) {
   if (sec.intro && !force) return; sec.intro = true;
-  const ins = sec.el.querySelectorAll('.head .in'), rest = sec.el.querySelectorAll('.cue, .decision, .note, .begin-row, #ask-form, .eyebrow, .next');
+  const ins = sec.el.querySelectorAll('.head .in'), rest = sec.el.querySelectorAll('.cue, .decision, .note, .begin-row, #ask-form, .eyebrow, .next, .line');
   if (reduce) { ins.forEach((e) => { e.style.transform = 'none'; }); rest.forEach((e) => { e.style.opacity = 1; e.style.transform = 'none'; }); return; }
   anime.remove([...ins, ...rest]);
   anime.set(ins, { translateY: '110%' }); anime.set(rest, { opacity: 0, translateY: 18 });
   anime({ targets: ins, translateY: ['110%', '0%'], duration: 950, easing: 'cubicBezier(.19,1,.22,1)', delay: anime.stagger(70) });
   anime({ targets: rest, opacity: [0, 1], translateY: [18, 0], duration: 800, easing: 'cubicBezier(.19,1,.22,1)', delay: anime.stagger(90, { start: 260 }) });
 }
-if (!reduce) { document.querySelectorAll('.head .in').forEach((e) => (e.style.transform = 'translateY(110%)')); document.querySelectorAll('.cue,.decision,.note,.begin-row,#ask-form,.eyebrow,.next').forEach((e) => (e.style.opacity = 0)); }
+if (!reduce) { document.querySelectorAll('.head .in').forEach((e) => (e.style.transform = 'translateY(110%)')); document.querySelectorAll('.cue,.decision,.note,.begin-row,#ask-form,.eyebrow,.next,.line').forEach((e) => (e.style.opacity = 0)); }
 
 /* ---------- voice + karaoke ---------- */
 function sameText(sec, cues) {
@@ -124,11 +138,11 @@ async function begin() {
   begun = true; soundOn = true;
   try { await audio.unlock(); unlockVoice(audio.getContext(), audio.getVoiceBus()); } catch { /* sound is optional */ }
   setSound(true); audio.setChapter(cur);
-  const b = $('#b-begin'); if (b) { b.textContent = 'Listening'; b.disabled = true; }
+  const b = $('#b-begin'); if (b) { b.textContent = 'listening…'; b.disabled = true; }
   speak(cur);
 }
 function setSound(on) {
-  soundOn = on; bSound.textContent = on ? 'Sound on' : 'Sound off'; bSound.setAttribute('aria-pressed', on);
+  soundOn = on; bSound.textContent = on ? 'sound: on' : 'sound: off'; bSound.setAttribute('aria-pressed', on);
   audio.setMuted(!on); setVoiceMuted(!on);
 }
 
@@ -179,7 +193,7 @@ bSound.addEventListener('click', () => { if (!begun) begin(); else { setSound(!s
 $('#b-begin').addEventListener('click', begin);
 /* theme: follows the system until the visitor picks one */
 const root = document.documentElement, bTheme = $('#b-theme');
-function setTheme(t) { root.dataset.theme = t; bTheme.textContent = t === 'dark' ? 'Light' : 'Dark'; document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#121212' : '#ecebe7'; }
+function setTheme(t) { root.dataset.theme = t; bTheme.textContent = 'theme: ' + t; document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#121212' : '#ecebe7'; }
 let saved = null; try { saved = localStorage.getItem('dustbin-theme'); } catch { /* private mode */ }
 setTheme(saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
 bTheme.addEventListener('click', () => { const t = root.dataset.theme === 'dark' ? 'light' : 'dark'; setTheme(t); try { localStorage.setItem('dustbin-theme', t); } catch { /* noop */ } });
@@ -212,11 +226,9 @@ document.addEventListener('visibilitychange', () => { document.hidden ? audio.su
   });
 })();
 
-/* ---------- portrait ---------- */
-drawPortrait($('#portrait')).then(() => {
-  const f = $('.portrait');
-  if (reduce) return;
-  anime({ targets: f, clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], duration: 2200, easing: 'steps(22)', complete: () => { f.style.clipPath = 'none'; } });
+/* ---------- portrait: a blink every few seconds, a tiny bob while the voice plays ---------- */
+if (!reduce) {
+  anime({ targets: '.portrait .eyes', scaleY: [1, 0.1, 1], duration: 220, easing: 'linear', loop: true, loopDelay: 3200 });
   anime({ targets: '.portrait .doodle', rotate: 360, duration: 9000, easing: 'linear', loop: true });
-});
+}
 setActive(0); frame();

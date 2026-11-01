@@ -73,8 +73,6 @@ I did not guess these. They are written conservatively in `src/story.js`; please
 4. Chapter 6: the spoken intro is my wording, not a fact.
 
 
-## The portrait (your photo, two colours)
+## The portrait
 
-Put your photo at `public/narrator/face.png` (or `face.jpg`). `src/dither.js` crops it to head and shoulders, boosts local contrast and converts it
-in the browser to a chunky two-tone ordered dither, deliberately loose and playful rather than photographic. No file means a plain silhouette. To change the crop, edit `CROP` at the top of `src/dither.js`;
-for finer or coarser dots change the width passed to `drawPortrait` (default 104).
+A friendly cartoon in plain SVG (round glasses, short dark hair, a smile; it blinks). It is drawn in the `#portrait` markup in `src/main.js`, so edit that to change hair, glasses or expression.
