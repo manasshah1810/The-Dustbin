@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#1C1917">
+<title>The Dustbin</title>
+<meta name="description" content="A voice-driven story. My failures, crumpled up in a dustbin, taken out one by one.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231C1917'/%3E%3Cpath d='M9 11h14l-2 15H11z' fill='%23F3EAD7'/%3E%3C/svg%3E">
+</head>
+<body>
+<div id="app" data-phase="gate">
+  <div id="stage" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <header id="top">
+    <p id="chapter-label" class="label"></p>
+    <h1 id="chapter-title" class="hand"></h1>
+  </header>
+
+  <main id="ui" aria-live="off">
+    <div id="paper-hint" class="hint" hidden></div>
+    <div id="caption" aria-hidden="true"></div>
+    <p id="caption-sr" class="sr-only" aria-live="polite"></p>
+    <div id="decision" hidden><span class="label" id="decision-label"></span><p id="decision-text"></p></div>
+    <form id="ask" hidden autocomplete="off">
+      <label for="ask-input" class="hand ask-q" id="ask-q"></label>
+      <textarea id="ask-input" rows="2" maxlength="120" enterkeyhint="done"></textarea>
+      <p class="label" id="privacy"></p>
+      <button type="submit" class="btn primary" id="ask-btn"></button>
+    </form>
+    <p id="gone" class="hand" hidden></p>
+  </main>
+
+  <nav id="controls" aria-label="Story controls">
+    <button class="btn ghost" id="b-prev" type="button"><span aria-hidden="true">←</span><span class="sr-only">Back</span></button>
+    <button class="btn ghost" id="b-replay" type="button" aria-label="Replay"><span aria-hidden="true">↺</span></button>
+    <button class="btn ghost" id="b-skip" type="button" aria-label="Skip paper"><span aria-hidden="true">Skip</span></button>
+    <button class="btn ghost" id="b-mute" type="button" aria-pressed="false" aria-label="Mute"><span aria-hidden="true" id="mute-ic">♪</span></button>
+    <button class="btn primary" id="b-next" type="button"></button>
+  </nav>
+  <ol id="dots" aria-hidden="true"></ol>
+
+  <section id="gate" aria-label="Start">
+    <div class="gate-lines hand" id="gate-lines" aria-hidden="true"></div>
+    <button id="begin" class="btn primary big" type="button"></button>
+    <p id="begin-sub" class="label"></p>
+    <noscript><p class="label">This story needs JavaScript.</p></noscript>
+  </section>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

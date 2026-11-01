@@ -1,0 +1,12 @@
+{
+  "_readme": "One entry per chapter slot (0-6). Drop slot-0.mp3 / slot-0.ogg etc. next to this file. If a file is missing the captions run on a gentle timer. 'cues' is optional: set it to your real transcript. Each cue: {\"t\": seconds, \"text\": \"...\"} and optionally \"words\": [{\"t\": seconds, \"w\": \"word\"}, ...] for exact word timing. If cues is omitted, the default script from src/story.js is spread across the audio duration.",
+  "slots": [
+    { "mp3": "audio/slot-0.mp3", "ogg": "audio/slot-0.ogg" },
+    { "mp3": "audio/slot-1.mp3", "ogg": "audio/slot-1.ogg" },
+    { "mp3": "audio/slot-2.mp3", "ogg": "audio/slot-2.ogg" },
+    { "mp3": "audio/slot-3.mp3", "ogg": "audio/slot-3.ogg" },
+    { "mp3": "audio/slot-4.mp3", "ogg": "audio/slot-4.ogg" },
+    { "mp3": "audio/slot-5.mp3", "ogg": "audio/slot-5.ogg" },
+    { "mp3": "audio/slot-6.mp3", "ogg": "audio/slot-6.ogg" }
+  ]
+}

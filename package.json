@@ -1,0 +1,21 @@
+{
+  "name": "the-dustbin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A voice-driven interactive story. Failures are crumpled papers in a dustbin.",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "check:size": "node scripts/check-size.mjs",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "dependencies": {
+    "@fontsource/caveat": "^5.3.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
