@@ -80,7 +80,8 @@ export async function createWorld(canvas, opts = {}) {
   for (const k of NUM_KEYS) cur[k] = tgt[k];
   for (const k of COLOR_KEYS) cur[k].copy(tgt[k]);
   const par = { x: 0, y: 0, sx: 0, sy: 0 };
-  let W = 1, Hh = 1, pxScale = 600;
+  let W = 1, Hh = 1, pxScale = 600, shift = 0;
+  function applyView() { if (shift) camera.setViewOffset(W, Hh, -W * shift, 0, W, Hh); else camera.clearViewOffset(); camera.updateProjectionMatrix(); }
 
   const sfx = (type, x = 0, gain = 0.8) => {
     try { opts.onSfx && opts.onSfx({ type, pan: clamp(x / 1.4, -1, 1), gain: clamp(gain, 0, 1) }); } catch (e) { /* ignore */ }
@@ -134,7 +135,7 @@ export async function createWorld(canvas, opts = {}) {
     const d = 1.5;
     const ht = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const vh = 2 * d * ht, vw = vh * camera.aspect;
-    readScale = Math.min((0.86 * vw) / PAPER_W, (0.8 * vh) / PAPER_H);
+    readScale = Math.min((0.86 * vw * (1 - 2 * shift)) / PAPER_W, (0.8 * vh) / PAPER_H);
     tmpV.set(0, 0, -d).applyQuaternion(camera.quaternion);
     readPos.copy(camera.position).add(tmpV);
   }
@@ -274,8 +275,9 @@ export async function createWorld(canvas, opts = {}) {
       W = Math.max(1, w | 0); Hh = Math.max(1, h | 0);
       renderer.setPixelRatio(Math.min(dpr || 1, dprCap));
       renderer.setSize(W, Hh, false);
-      camera.aspect = W / Hh; camera.updateProjectionMatrix();
+      camera.aspect = W / Hh; applyView();
     },
+    setViewShift(f) { f = clamp(+f || 0, 0, 0.3); if (f !== shift) { shift = f; applyView(); } },
 
     setPaused(b) {
       paused = !!b;

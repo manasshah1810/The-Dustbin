@@ -3,8 +3,8 @@ import anime from 'animejs/lib/anime.es.js';
 
 // A 3D narrator bust drawn with an ordered (Bayer) dither: two inks, chunky pixels.
 // If /narrator/face.png|jpg exists it is dithered onto a head-shaped plane instead of the procedural face.
-const INK = new THREE.Color('#0A1030');
-const PAPER = new THREE.Color('#FBF7EA');
+const INK = new THREE.Color('#0F1334');
+const PAPER = new THREE.Color('#F6EEDC');
 
 const EMO = {
   shy:      { bt: 0.25, by: 0.0,  eo: 0.9,  c: 0.15, mo: 0.0,  tilt: 0.07, pitch: 0.10 },
@@ -176,7 +176,7 @@ export async function createNarrator(host, { quality = 'mid', reducedMotion = fa
 
   return {
     setEmotion,
-    setSpeaking(v) { speaking = !!v; },
+    setSpeaking(v) { speaking = !!v; host.classList.toggle('speaking', speaking); },
     setLook(x, y) { look.x = x; look.y = y; },
     nod() { anime({ targets: P, pitch: [P.pitch + 0.0, P.pitch + 0.14, P.pitch], duration: 500, easing: 'easeInOutSine' }); },
     setPaused(v) { running = !v; },

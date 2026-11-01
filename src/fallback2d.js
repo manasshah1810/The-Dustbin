@@ -204,7 +204,7 @@ export async function createWorld(root, opts = {}) {
 
   return {
     kind: '2d',
-    setChapter, openPaper, closePaper, submitUserPaper, resize,
+    setViewShift() {}, setChapter, openPaper, closePaper, submitUserPaper, resize,
     setTremble(on) { tremble = on; if (open) open.el.classList.toggle('tremble', on); },
     setParallax(x, y) { par.x = x; par.y = y; },
     setPaused(p) { paused = p; wrap.classList.toggle('paused', p); },

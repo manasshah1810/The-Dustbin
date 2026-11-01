@@ -6,7 +6,7 @@ export function createFloor(quality) {
   const group = new THREE.Group();
   const geo = new THREE.PlaneGeometry(70, 70, 1, 1);
   geo.rotateX(-Math.PI / 2);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x75654f, roughness: 0.96, metalness: 0 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x907f86, roughness: 0.96, metalness: 0 });
   mat.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
@@ -23,7 +23,7 @@ float sandH(vec2 p){
   float g = vnoise(vec3(vWP.xz*90.0, 7.0));
   float rip = sandH(vWP.xz);
   diffuseColor.rgb *= (0.62 + 0.5*big) * (0.86 + 0.22*rip) * (0.93 + 0.1*g);
-  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(1.0,0.9,0.78), big);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(1.08,0.92,0.84), big);
 }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 {
@@ -41,7 +41,7 @@ float sandH(vec2 p){
   // scattered pebbles
   const rnd = mulberry(7);
   const pg = new THREE.IcosahedronGeometry(1, 1);
-  const pm = new THREE.MeshStandardMaterial({ color: 0x5d5249, roughness: 0.9, flatShading: true });
+  const pm = new THREE.MeshStandardMaterial({ color: 0x4a465c, roughness: 0.9, flatShading: true });
   const count = quality === 'low' ? 18 : 46;
   const inst = new THREE.InstancedMesh(pg, pm, count);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), s = new THREE.Vector3();

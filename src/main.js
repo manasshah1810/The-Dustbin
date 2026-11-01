@@ -41,7 +41,8 @@ $('dots').innerHTML = CHAPTERS.map(() => '<li></li>').join('');
 /* ---------- gate: words arrive before any touch ---------- */
 const gl = $('gate-lines');
 gl.innerHTML = GATE_LINES.map((l) => `<div>${l}</div>`).join('');
-GATE_LINES.forEach((_, i) => setTimeout(() => gl.children[i].classList.add('on'), (reduced ? 200 : 700) + i * (reduced ? 300 : 1900)));
+if (reduced) [...gl.children].forEach((c) => { c.style.opacity = 1; });
+else [...gl.children].forEach((c, i) => anime({ targets: c, opacity: [0, 1], translateY: [26, 0], filter: ['blur(14px)', 'blur(0px)'], letterSpacing: ['0.12em', '0em'], delay: 700 + i * 1900, duration: 1700, easing: 'easeOutExpo' }));
 loadManifest(); // tiny; ready before first note
 
 /* ---------- world (lazy, coarse-split chunk) ---------- */
@@ -82,7 +83,12 @@ async function startWorld() {
   world.setChapter(state.chapter, { instant: true });
   app.classList.add('ready');
 }
-function sizeWorld() { if (world) world.resize(stage.clientWidth || innerWidth, stage.clientHeight || innerHeight, Math.min(devicePixelRatio || 1, 2)); }
+const DESKTOP = matchMedia('(min-aspect-ratio: 11/10) and (min-width: 760px)');
+function sizeWorld() {
+  if (!world) return;
+  world.resize(stage.clientWidth || innerWidth, stage.clientHeight || innerHeight, Math.min(devicePixelRatio || 1, 2));
+  if (world.setViewShift) world.setViewShift(DESKTOP.matches ? 0.15 : 0);
+}
 async function maybeDowngrade() {
   if (!['idle', 'closed', 'ask', 'thrown', 'gate'].includes(state.phase)) { setTimeout(maybeDowngrade, 2500); return; }
   const next = quality === 'high' ? 'mid' : quality === 'mid' ? 'low' : null;
@@ -163,7 +169,13 @@ function setHeader(i) {
   document.title = i === 0 ? 'The Dustbin' : `${ch.label} · The Dustbin`;
 }
 
+function sweep() {
+  if (reduced) return;
+  const sw = $('sweep'); sw.style.opacity = 1;
+  anime({ targets: sw, translateX: ['-100%', '100%'], duration: 1100, easing: 'easeInOutQuad', complete: () => { sw.style.opacity = 0; } });
+}
 async function enterChapter(i, { instant = false } = {}) {
+  if (!instant && i > 0) sweep();
   const tk = ++state.token;
   stopVoice(); clearCaption();
   el.decision.hidden = true; el.ask.hidden = true; el.gone.hidden = true;
@@ -350,3 +362,29 @@ renderControls();
 if (PREVIEW) { $('begin').textContent = 'Starting…'; setTimeout(begin, 400); }  // preview: no tap needed (audio may stay locked until first touch)
 if (PREVIEW) addEventListener('pointerdown', () => audio.unlock(), { once: true });
 window.__dustbin = { state, get world() { return world; }, go, get kind() { return worldKind; } };
+
+
+/* ---------- polish: grain, cursor light, magnetic + springy buttons ---------- */
+(function polish() {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d'), d = g.createImageData(128, 128);
+    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+    g.putImageData(d, 0, 0);
+    $('grain').style.backgroundImage = `url(${c.toDataURL()})`;
+  } catch { /* grain is optional */ }
+  if (reduced) return;
+  addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+    app.style.setProperty('--mx', e.clientX + 'px'); app.style.setProperty('--my', e.clientY + 'px');
+  }, { passive: true });
+  document.querySelectorAll('.btn').forEach((b) => {
+    b.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const r = b.getBoundingClientRect();
+      anime({ targets: b, translateX: (e.clientX - r.left - r.width / 2) * 0.18, translateY: (e.clientY - r.top - r.height / 2) * 0.28, duration: 260, easing: 'easeOutQuad' });
+    });
+    b.addEventListener('pointerleave', () => anime({ targets: b, translateX: 0, translateY: 0, duration: 700, easing: 'easeOutElastic(1, .5)' }));
+    b.addEventListener('pointerdown', () => anime({ targets: b, scale: [0.93, 1], duration: 650, easing: 'easeOutElastic(1, .55)' }));
+  });
+})();

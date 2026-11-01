@@ -71,7 +71,7 @@ function paintMaps(S, ySamples, quality) {
       const foot = Math.exp(-Math.pow(v / 0.07, 2)) * 0.9;
       const rust = Math.max(0, Math.min(1, (rn - (0.74 - foot * 0.22 - lip * 0.12 - ribD * 0.05 - 0.1 * (1 - ny))) * 4.0)) * 0.75;
       let L = 0.2 + 0.09 * (mott - 0.5) + 0.07 * (crystal - 0.5) + 0.03 * (grain - 0.5);
-      let r = L, g = L * 1.01, b = L * 1.0;
+      let r = L * 0.95, g = L * 1.0, b = L * 1.08;
       // grime: warm dark brown-grey
       const gm = grime * 0.82;
       r = r * (1 - gm) + 0.12 * gm; g = g * (1 - gm) + 0.105 * gm; b = b * (1 - gm) + 0.09 * gm;

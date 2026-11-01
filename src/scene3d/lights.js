@@ -3,6 +3,8 @@ import * as THREE from 'three';
 export function createLights(scene, quality) {
   const hemi = new THREE.HemisphereLight(0x2a2f38, 0x15110e, 0.1);
   scene.add(hemi);
+  const rim = new THREE.DirectionalLight(0x8aa0ff, 1.1); rim.position.set(-3.2, 2.6, -4); scene.add(rim);
+  const kick = new THREE.DirectionalLight(0xffd2a0, 0.35); kick.position.set(3.5, 1.2, 2); scene.add(kick);
   const spot = new THREE.SpotLight(0xffe3bd, 90, 0, 0.21, 0.85, 2);
   spot.position.set(0.4, 5.2, 1.4);
   spot.target.position.set(0, 0.75, 0);
