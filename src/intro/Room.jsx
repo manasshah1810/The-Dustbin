@@ -293,6 +293,7 @@ function Room() {
       <directionalLight position={[-1.3, 2.6, -4.8]} intensity={1.35} color="#b0bcc6" castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02}
         shadow-camera-left={-4} shadow-camera-right={4} shadow-camera-top={3.5} shadow-camera-bottom={-3.5} shadow-camera-near={0.5} shadow-camera-far={14} />
       <pointLight ref={glow} position={[0.7, 1.05, -2.5]} color="#c4d0dc" intensity={2.4} distance={5.5} decay={1.7} />
+      <pointLight position={[-2.0, 1.9, -1.5]} color="#b3c0cc" intensity={3.2} distance={4.2} decay={1.5} />
       <pointLight ref={gap} position={[2.55, 1.0, -3.2]} color="#9fb2c0" intensity={0.9} distance={3.2} decay={1.8} />
       <spotLight position={[1.7, 2.5, -1.9]} angle={0.5} penumbra={1} intensity={2.4} decay={1.4} color="#a7b0b7" />
 
@@ -348,11 +349,10 @@ function Room() {
         {[-0.45, -0.22, 0, 0.22, 0.45].map((x, i) => <Bx key={i} p={[x, 0.82, -1.03]} s={[0.07, 0.5, 0.03]} c="#2f2a26" round={0.012} />)}
         <Bx p={[0, 0.34, 1.07]} s={[1.18, 0.3, 0.05]} c="#3a342f" tex={m.desk} round={0.025} />
         {/* mattress with piping, fitted sheet, then the duvet and pillows */}
-        <mesh position={[0, 0.4, 0]} castShadow receiveShadow geometry={m.mattress}><meshStandardMaterial map={m.sheet} color="#8b9195" {...D} /></mesh>
-        <mesh position={[0, 0.52, 0.12]} castShadow receiveShadow geometry={m.duvet} rotation={[0, 0.04, 0]}><meshStandardMaterial map={m.sheet} color="#939a9e" bumpMap={m.sheet} bumpScale={1.5} {...D} side={THREE.DoubleSide} /></mesh>
+        <mesh position={[0, 0.4, 0]} castShadow receiveShadow geometry={m.mattress}><meshStandardMaterial map={m.sheet} color="#a4abaf" {...D} /></mesh>
+        <mesh position={[0, 0.52, 0.12]} castShadow receiveShadow geometry={m.duvet} rotation={[0, 0.04, 0]}><meshStandardMaterial map={m.sheet} color="#adb4b8" bumpMap={m.sheet} bumpScale={1.5} {...D} side={THREE.DoubleSide} /></mesh>
         <mesh position={[-0.2, 0.62, -0.78]} scale={[0.4, 0.14, 0.27]} rotation={[0.06, 0.1, 0.02]} geometry={m.pillowG} castShadow receiveShadow><meshStandardMaterial map={m.pillow} color="#b8bcbe" {...D} /></mesh>
         <mesh position={[0.28, 0.6, -0.8]} scale={[0.38, 0.13, 0.26]} rotation={[0.04, -0.2, -0.03]} geometry={m.pillowG} castShadow receiveShadow><meshStandardMaterial map={m.pillow} color="#a9adaf" {...D} /></mesh>
-        <mesh position={[-0.05, 0.6, 0.78]} scale={[0.46, 0.06, 0.3]} rotation={[0, 0.5, 0]} geometry={m.pillowG} castShadow><meshStandardMaterial color="#555b60" {...D} /></mesh>
       </group>
       {/* clothes on the floor, shoes */}
       <mesh geometry={m.cloth} position={[-1.55, 0.04, -0.7]} rotation={[0, 0.6, 0]} castShadow><meshStandardMaterial color="#555b5f" {...D} /></mesh>
@@ -450,6 +450,7 @@ function Rig({ reduce, onReady, play }) {
   useFrame((s) => {
     if (!play) { camera.position.set(-0.4, 1.5, 3.0); camera.lookAt(0.7, 0.95, -2.6); return; }
     if (t0.current === null) { t0.current = s.clock.elapsedTime; onReady && onReady(); }
+    if (new URLSearchParams(location.search).get('cam') === 'bed') { camera.position.set(-1.0, 1.35, -0.2); camera.lookAt(-2.4, 0.4, -1.9); camera.fov = 58; camera.updateProjectionMatrix(); return; }
     const dbg = new URLSearchParams(location.search).get('roomT');
     const t = dbg !== null ? +dbg : s.clock.elapsedTime - t0.current;
     // wide → close on the desk (read the sheet) → across to the dustbin → look in
