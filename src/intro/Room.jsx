@@ -146,6 +146,27 @@ function clothGeometry() {
   for (let i = 0; i < p.count; i++) { const n = 0.75 + hash(i) * 0.5; p.setXYZ(i, p.getX(i) * n * 1.4, Math.abs(p.getY(i)) * 0.35 * n, p.getZ(i) * n); }
   g.computeVertexNormals(); return g;
 }
+function drapeGeometry(w, h, amp, seed) {
+  const g = new THREE.PlaneGeometry(w, h, 48, 56), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), k = (0.5 - y / h);                       /* 0 at top, 1 at bottom */
+    const f = Math.sin(x * 26 + seed) * 0.5 + Math.sin(x * 11 - seed * 2) * 0.7 + Math.sin(x * 47 + y * 6) * 0.15;
+    p.setZ(i, f * amp * (0.25 + k) + Math.sin(y * 7 + seed) * 0.006 + k * k * 0.03);
+  }
+  g.computeVertexNormals(); return g;
+}
+function garmentTex(kind) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 320; const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.beginPath();
+  if (kind === 'shirt') {
+    x.moveTo(98, 8); x.quadraticCurveTo(128, 34, 158, 8); x.lineTo(210, 30); x.lineTo(252, 140); x.lineTo(214, 156); x.lineTo(196, 112);
+    x.lineTo(200, 312); x.quadraticCurveTo(128, 320, 56, 312); x.lineTo(60, 112); x.lineTo(42, 156); x.lineTo(4, 140); x.lineTo(46, 30);
+  } else {
+    x.moveTo(56, 4); x.lineTo(200, 4); x.lineTo(214, 120); x.lineTo(206, 316); x.lineTo(136, 316); x.lineTo(128, 130); x.lineTo(120, 316); x.lineTo(50, 316); x.lineTo(42, 120);
+  }
+  x.closePath(); x.fill();
+  const t = new THREE.CanvasTexture(c); return t;
+}
 const D = { roughness: 0.92, metalness: 0 };
 const Bx = ({ p, s, c, tex, shadow = true, rot, r = 0.9, round, ...o }) => {
   const rad = Math.min(round ?? 0.014, Math.min(s[0], s[1], s[2]) * 0.45);
@@ -162,7 +183,7 @@ function Room() {
   const [fontReady, setFont] = useState(false);
   useEffect(() => { let on = true; const f = document.fonts; (f ? Promise.all([f.load('200px Caveat', 'Ans 2/30'), f.load('700 60px "Instrument Serif"', 'PAWAR'), f.load('34px "Space Grotesk"', 'Name')]) : Promise.resolve()).catch(() => {}).then(() => on && setFont(true)); return () => { on = false; }; }, []);
   const m = useMemo(() => ({ wall: wallTex(), floor: floorTex(), sheet: linenTex('#4a4f54', '#40454a'), pillow: linenTex('#767a7c', '#6b6f72'), rug: rugTex(), desk: woodTex('#4a4540'), shelf: woodTex('#3c3834'), door: woodTex('#4d4a45'),
-    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
+    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
     paper: [crumple(0.07, 1), crumple(0.08, 2), crumple(0.065, 3), crumple(0.075, 4), crumple(0.06, 5), crumple(0.08, 6), crumple(0.07, 7), crumple(0.06, 8)] }), []);
   const screen = useMemo(() => (fontReady ? screenTex() : null), [fontReady]);
   const glow = useRef(); const dust = useRef(); const gap = useRef();
@@ -302,9 +323,10 @@ function Room() {
       {/* right wall: uniform on a hook, a poster, a clock */}
       <group position={[W - 0.06, 0, -1.2]} rotation={[0, -Math.PI / 2, 0]}>
         <Bx p={[0, 1.78, 0]} s={[0.05, 0.05, 0.08]} c="#6f7376" shadow={false} />
-        <Bx p={[0, 1.4, 0.04]} s={[0.4, 0.62, 0.09]} c="#5f6468" /><Bx p={[-0.28, 1.45, 0.04]} s={[0.12, 0.42, 0.08]} c="#5b6064" rot={[0, 0, 0.12]} /><Bx p={[0.28, 1.45, 0.04]} s={[0.12, 0.42, 0.08]} c="#5b6064" rot={[0, 0, -0.12]} />
-        <Bx p={[0, 0.78, 0.04]} s={[0.34, 0.8, 0.08]} c="#2e3236" />
-      </group>
+        {/* shirt draped on the hook, trousers hanging below it */}
+        <mesh geometry={m.shirtG} position={[0, 1.43, 0.05]} receiveShadow><meshStandardMaterial color="#6a7074" alphaMap={m.shirtA} alphaTest={0.5} side={THREE.DoubleSide} {...D} /></mesh>
+        <mesh geometry={m.pantsG} position={[0, 0.9, 0.035]} receiveShadow><meshStandardMaterial color="#33383c" alphaMap={m.pantsA} alphaTest={0.5} side={THREE.DoubleSide} {...D} /></mesh>
+        </group>
       <mesh position={[W - 0.01, 1.65, 0.7]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[0.55, 0.78]} /><meshStandardMaterial map={m.posters[0]} {...D} /></mesh>
       <mesh position={[-W + 0.01, 1.7, -0.9]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[0.55, 0.78]} /><meshStandardMaterial map={m.posters[1]} {...D} /></mesh>
       <mesh position={[W - 0.01, 2.25, -1.8]} rotation={[0, -Math.PI / 2, 0]}><circleGeometry args={[0.17, 32]} /><meshStandardMaterial map={m.clock} {...D} /></mesh>
