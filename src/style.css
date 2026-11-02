@@ -61,7 +61,7 @@ a { color: inherit; text-decoration: none; }
 .glyphs i { position: absolute; font: 400 24px ui-monospace, Menlo, Consolas, monospace; color: var(--fg); opacity: .06; animation: drift 14s ease-in-out infinite alternate; }
 @keyframes drift { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-26px) rotate(5deg); } }
 .chap { isolation: isolate; }
-.portrait { position: relative; width: min(100%, 400px); margin: 0; }
+.portrait { position: relative; width: min(100%, 440px); margin: 0; }
 .gface { display: block; width: 100%; color: var(--fg); }
 .gface.mini { width: 110px; margin: 0 auto 14px; opacity: .9; }
 .glyphs { transform: translate(calc(var(--mx, 0) * -26px), calc(var(--my, 0) * -20px)); transition: transform .4s ease-out; }
