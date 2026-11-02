@@ -76,3 +76,8 @@ I did not guess these. They are written conservatively in `src/story.js`; please
 ## The portrait
 
 A friendly cartoon in plain SVG (round glasses, short dark hair, a smile; it blinks). It is drawn in the `#portrait` markup in `src/main.js`, so edit that to change hair, glasses or expression.
+
+## The opening (React + Three.js)
+
+`src/intro/` holds the first ~15 seconds: a gate with two buttons (begin with / without audio) → the labels turn into particles that stream to the top-right and form the speaker button (with a `skip` link beside it) → a dull 3D bedroom (bed, desk, laptop showing the 2/30 paper, a dustbin) built from primitives in React Three Fiber → the camera walks to the dustbin and looks in → fade into the scroll story.
+It talks to `src/main.js` through two window events: `dustbin:begin` (`detail.sound`) and `dustbin:done`. The 3D chunk is lazy-loaded while the visitor reads the gate. If WebGL fails, the story simply starts. Reduced motion: no particles or camera move, a short static room. Debug: `?roomT=11` freezes the camera at second 11 of the move.

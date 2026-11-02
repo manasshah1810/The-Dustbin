@@ -8,14 +8,15 @@
 <meta name="description" content="A story told in my own voice. My failures since seventh grade, crumpled up in a dustbin, taken out one by one.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Cpath d='M9 11h14l-2 15H11z' fill='%23fff'/%3E%3C/svg%3E">
 </head>
-<body>
+<body class="intro-on">
 <a class="skip-link" href="#story">Skip to the story</a>
 <div id="app">
-  <button id="b-theme" class="corner tr" type="button" aria-label="Switch between light and dark">Light</button>
-  <button id="b-sound" class="corner bl" type="button" aria-pressed="false">Sound off</button>
+  <button id="b-theme" class="corner br" type="button" aria-label="Switch between light and dark">Light</button>
   <div id="progress" aria-hidden="true"><i></i></div>
   <main id="story"></main>
 </div>
+<button id="b-sound" class="speaker muted" type="button" aria-pressed="false" aria-label="Sound is off. Turn it on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="wave" d="M16 8.5a5 5 0 010 7"/><path class="wave" d="M18.6 6a8.6 8.6 0 010 12"/><path class="slash" d="M4 4l16 16"/></svg></button>
+<div id="intro"></div>
 <noscript><p style="padding:2rem;color:#fff">This story needs JavaScript. It is a few short chapters about failing, and then trying again.</p></noscript>
 <script type="module" src="/src/main.js"></script>
 </body>

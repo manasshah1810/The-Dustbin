@@ -31,7 +31,6 @@ CHAPTERS.forEach((c, i) => {
       ${c.placeholder ? `<p class="note">${esc(c.placeholder)}</p>` : ''}
       ${i < 6 ? `<p class="next"><button type="button" class="link soft" data-next>next();</button><button type="button" class="link soft" data-replay>replay();</button></p>` : ''}
       <p class="code line close"><span class="br">}</span><span class="op">;</span></p>
-      ${i === 0 ? `<p class="begin-row"><button type="button" id="b-begin" class="link">begin<span class="op">(</span><span class="str">&quot;with sound&quot;</span><span class="op">)</span><span class="op">;</span></button><span class="or code"><span class="cm">// or just scroll</span></span></p>` : ''}
     </div>
     <div class="side">${i > 0 ? `<canvas class="gface mini" data-mood="${[1,-0.6,-0.3,0.4,0.9,0,0.7][i]}" aria-hidden="true"></canvas>` : ''}${i === 0 ? `<figure class="portrait"><canvas class="gface" role="img" aria-label="A face drawn out of code characters: brackets, colons and semicolons. Its eyes follow your cursor."></canvas><span class="bubble" aria-hidden="true">that’s me</span></figure>` : ''}</div>`;
   story.appendChild(s);
@@ -73,7 +72,7 @@ CHAPTERS.forEach((c, i) => {
 })();
 
 /* ---------- state ---------- */
-let begun = false, soundOn = false, cur = 0, ctrl = null, startTimer = 0;
+let introDone = false, begun = false, soundOn = false, cur = 0, ctrl = null, startTimer = 0;
 const bSound = $('#b-sound');
 
 function go(i, instant) {
@@ -126,16 +125,15 @@ async function speak(i) {
   sec.el.classList.add('listening'); document.body.classList.add('speaking');
 }
 
-async function begin() {
+async function begin(defer) {
   if (begun) return;
   begun = true; soundOn = true;
   try { await audio.unlock(); unlockVoice(audio.getContext(), audio.getVoiceBus()); } catch { /* sound is optional */ }
   setSound(true); audio.setChapter(cur);
-  const b = $('#b-begin'); if (b) { b.textContent = 'listening…'; b.disabled = true; }
-  speak(cur);
+  if (!defer || introDone) speak(cur);
 }
 function setSound(on) {
-  soundOn = on; bSound.textContent = on ? 'sound: on' : 'sound: off'; bSound.setAttribute('aria-pressed', on);
+  soundOn = on; bSound.classList.toggle('muted', !on); bSound.setAttribute('aria-pressed', on); bSound.setAttribute('aria-label', on ? 'Sound is on. Turn it off' : 'Sound is off. Turn it on');
   audio.setMuted(!on); setVoiceMuted(!on);
 }
 
@@ -182,8 +180,12 @@ function replay() {
   const s = secs[cur]; s.el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   intro(s, true); if (begun) { s._ptr = 0; speak(cur); }
 }
-bSound.addEventListener('click', () => { if (!begun) begin(); else { setSound(!soundOn); } });
-$('#b-begin').addEventListener('click', begin);
+bSound.addEventListener('click', () => { if (!begun) begin(!introDone); else { setSound(!soundOn); } });
+/* the opening (React + Three.js) hands over through two events */
+addEventListener('dustbin:begin', (e) => { if (e.detail.sound) begin(true); else setSound(false); });
+addEventListener('dustbin:done', () => { introDone = true; document.body.classList.remove('intro-on'); scrollTo(0, 0); intro(secs[0]); if (begun) { stopAll(); speak(cur); } });
+document.querySelector('.skip-link').addEventListener('click', () => dispatchEvent(new CustomEvent('dustbin:skip')));
+import('./intro/mount.jsx').then((mod) => mod.mountIntro()).catch(() => { document.body.classList.remove('intro-on'); introDone = true; });
 /* theme: follows the system until the visitor picks one */
 const root = document.documentElement, bTheme = $('#b-theme');
 function setTheme(t) { root.dataset.theme = t; bTheme.textContent = 'theme: ' + t; document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#121212' : '#ecebe7'; }
