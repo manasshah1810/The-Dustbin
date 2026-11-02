@@ -19,19 +19,36 @@ function canvasTex(w, h, draw, repeat) {
 function speckle(x, w, h, n, a) { for (let i = 0; i < n; i++) { const v = hash(i * 3.1) * 255; x.fillStyle = `rgba(${v},${v},${v},${a * hash(i * 7.7)})`; x.fillRect(hash(i * 1.7) * w, hash(i * 5.3) * h, 1 + hash(i) * 2, 1 + hash(i + 9) * 2); } }
 
 /* ---------- textures ---------- */
-const wallTex = () => canvasTex(512, 512, (x, w, h) => {
-  x.fillStyle = '#767a7c'; x.fillRect(0, 0, w, h);
-  for (let i = 0; i < 30; i++) { const g = x.createRadialGradient(hash(i) * w, hash(i + 40) * h, 4, hash(i) * w, hash(i + 40) * h, 50 + hash(i + 7) * 150); const d = hash(i) < .5; g.addColorStop(0, `rgba(${d ? 38 : 120},${d ? 40 : 122},${d ? 42 : 124},.14)`); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); }
-  speckle(x, w, h, 7000, .09);
-  for (let i = 0; i < 14; i++) { const gx = x.createLinearGradient(0, 0, 0, h); const xx = hash(i * 9) * w; gx.addColorStop(0, 'rgba(25,25,27,.0)'); gx.addColorStop(.5, 'rgba(25,25,27,.07)'); gx.addColorStop(1, 'rgba(25,25,27,.14)'); x.fillStyle = gx; x.fillRect(xx, 0, 2 + hash(i) * 6, h); }   // damp streaks
-}, [2.2, 1.2]);
+const wallTex = () => canvasTex(1024, 1024, (x, w, h) => {
+  x.fillStyle = '#74787a'; x.fillRect(0, 0, w, h);
+  for (let i = 0; i < 46; i++) { const cx = hash(i) * w, cy = hash(i + 40) * h, g = x.createRadialGradient(cx, cy, 6, cx, cy, 70 + hash(i + 7) * 220); const d = hash(i) < .55; g.addColorStop(0, `rgba(${d ? 34 : 130},${d ? 37 : 132},${d ? 39 : 134},.15)`); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); }
+  /* plaster: fine roller stipple + hairline cracks */
+  speckle(x, w, h, 26000, .1);
+  x.lineCap = 'round'; for (let i = 0; i < 9; i++) { let px = hash(i * 17) * w, py = hash(i * 23) * h; x.strokeStyle = 'rgba(18,18,20,.22)'; x.lineWidth = .8; x.beginPath(); x.moveTo(px, py); for (let k = 0; k < 14; k++) { px += (hash(i * 31 + k) - .5) * 26; py += 8 + hash(i * 11 + k) * 18; x.lineTo(px, py); } x.stroke(); }
+  /* damp streaks running down from the ceiling */
+  for (let i = 0; i < 18; i++) { const xx = hash(i * 9) * w, len = 160 + hash(i * 5) * 420, gx = x.createLinearGradient(0, 0, 0, len); gx.addColorStop(0, 'rgba(22,24,26,.2)'); gx.addColorStop(1, 'rgba(22,24,26,0)'); x.fillStyle = gx; x.fillRect(xx, 0, 3 + hash(i) * 14, len); }
+  /* scuffs and a few peeling flecks */
+  for (let i = 0; i < 50; i++) { x.fillStyle = `rgba(${hash(i) > .5 ? 170 : 30},${hash(i) > .5 ? 172 : 32},${hash(i) > .5 ? 172 : 34},${.08 + hash(i + 3) * .12})`; x.beginPath(); x.ellipse(hash(i * 3) * w, hash(i * 7) * h, 2 + hash(i) * 9, 1 + hash(i + 8) * 3, hash(i) * 3, 0, 6.3); x.fill(); }
+}, [1.5, 0.9]);
 const floorTex = () => canvasTex(1024, 1024, (x, w, h) => {
-  const pw = 128; for (let i = 0; i < w / pw; i++) { const v = 56 + hash(i * 5) * 16; x.fillStyle = `rgb(${v},${v - 2},${v - 5})`; x.fillRect(i * pw, 0, pw, h);
-    for (let j = 0; j < 10; j++) { const y0 = hash(i * 13 + j) * h; x.fillStyle = `rgba(0,0,0,${.04 + hash(j + i) * .07})`; x.fillRect(i * pw, y0, pw, 2 + hash(j) * 34); }
-    for (let k = 0; k < 40; k++) { x.strokeStyle = `rgba(20,16,12,${.05 + hash(k + i) * .08})`; x.beginPath(); const y0 = hash(k * 3 + i) * h; x.moveTo(i * pw + hash(k) * pw, y0); x.lineTo(i * pw + hash(k) * pw + (hash(k + 5) - .5) * 14, y0 + 40 + hash(k + 8) * 140); x.stroke(); }
-    x.fillStyle = 'rgba(0,0,0,.6)'; x.fillRect(i * pw, 0, 2, h); for (let k = 0; k < 3; k++) x.fillRect(i * pw, hash(i + k * 3) * h, pw, 1.5); }
-  speckle(x, w, h, 12000, .1);
-}, [1.7, 1.9]);
+  const N = 8, pw = w / N;
+  for (let i = 0; i < N; i++) {
+    let y = -hash(i * 7) * 300;
+    while (y < h) {                                     /* staggered boards */
+      const len = 340 + hash(i * 13 + y) * 380, v = 52 + hash(i * 5 + y * .01) * 26;
+      x.fillStyle = `rgb(${v + 6},${v},${v - 8})`; x.fillRect(i * pw, y, pw, len);
+      for (let k = 0; k < 34; k++) { const gx = i * pw + 4 + hash(k * 3 + y + i) * (pw - 8); x.strokeStyle = `rgba(${hash(k) > .5 ? 14 : 96},${hash(k) > .5 ? 10 : 84},${hash(k) > .5 ? 8 : 70},${.07 + hash(k + i) * .12})`; x.lineWidth = .7 + hash(k + 5) * 1.6; x.beginPath(); x.moveTo(gx, y); x.bezierCurveTo(gx + (hash(k + 2) - .5) * 16, y + len * .3, gx + (hash(k + 4) - .5) * 16, y + len * .7, gx + (hash(k + 6) - .5) * 10, y + len); x.stroke(); }
+      if (hash(i * 3 + y) > .55) { const kx = i * pw + pw * (.25 + hash(y) * .5), ky = y + len * (.2 + hash(y + 1) * .6); for (let r = 0; r < 4; r++) { x.strokeStyle = `rgba(14,10,8,${.35 - r * .07})`; x.lineWidth = 1.4; x.beginPath(); x.ellipse(kx, ky, 4 + r * 4, 7 + r * 7, 0, 0, 6.3); x.stroke(); } }
+      x.fillStyle = 'rgba(0,0,0,.72)'; x.fillRect(i * pw, y, pw, 2.5);   /* butt joint */
+      y += len;
+    }
+    x.fillStyle = 'rgba(0,0,0,.7)'; x.fillRect(i * pw, 0, 2.2, h);        /* gap between boards */
+  }
+  /* scratches, grime and worn varnish near the middle */
+  for (let i = 0; i < 90; i++) { x.strokeStyle = `rgba(${hash(i) > .5 ? 160 : 10},${hash(i) > .5 ? 150 : 8},${hash(i) > .5 ? 140 : 6},${.06 + hash(i + 2) * .1})`; x.lineWidth = .6; x.beginPath(); const sx = hash(i * 3) * w, sy = hash(i * 5) * h; x.moveTo(sx, sy); x.lineTo(sx + (hash(i + 4) - .5) * 160, sy + (hash(i + 6) - .5) * 160); x.stroke(); }
+  for (let i = 0; i < 16; i++) { const cx = hash(i * 3) * w, cy = hash(i * 7) * h, g = x.createRadialGradient(cx, cy, 5, cx, cy, 60 + hash(i) * 120); g.addColorStop(0, 'rgba(0,0,0,.22)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); }
+  speckle(x, w, h, 16000, .1);
+}, [3.6, 3.4]);
 const linenTex = (c1, c2) => canvasTex(256, 256, (x, w, h) => { x.fillStyle = c1; x.fillRect(0, 0, w, h); for (let i = 0; i < h; i += 3) { x.fillStyle = c2; x.fillRect(0, i, w, 1); } for (let i = 0; i < w; i += 3) { x.fillStyle = c2; x.globalAlpha = .5; x.fillRect(i, 0, 1, h); x.globalAlpha = 1; } speckle(x, w, h, 2500, .12); }, [3, 3]);
 const rugTex = () => canvasTex(512, 384, (x, w, h) => {
   x.fillStyle = '#3d4348'; x.fillRect(0, 0, w, h); x.strokeStyle = '#555c61'; x.lineWidth = 10; x.strokeRect(22, 22, w - 44, h - 44); x.strokeStyle = '#2b3034'; x.lineWidth = 4; x.strokeRect(46, 46, w - 92, h - 92);
@@ -254,10 +271,10 @@ function Room() {
       <spotLight position={[1.7, 2.5, -1.9]} angle={0.5} penumbra={1} intensity={2.4} decay={1.4} color="#a7b0b7" />
 
       {/* shell */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><planeGeometry args={[2 * W, 9]} /><meshStandardMaterial map={m.floor} bumpMap={m.floor} bumpScale={1.5} {...D} roughness={0.75} /></mesh>
-      <mesh position={[0, 1.45, DZ]}><planeGeometry args={[2 * W, 2.9]} /><meshStandardMaterial map={m.wall} bumpMap={m.wall} bumpScale={1.2} {...D} /></mesh>
-      <mesh position={[-W, 1.45, 0]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[9, 2.9]} /><meshStandardMaterial map={m.wall} bumpMap={m.wall} bumpScale={1.2} {...D} /></mesh>
-      <mesh position={[W, 1.45, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[9, 2.9]} /><meshStandardMaterial map={m.wall} bumpMap={m.wall} bumpScale={1.2} {...D} /></mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><planeGeometry args={[2 * W, 9]} /><meshStandardMaterial map={m.floor} bumpMap={m.floor} bumpScale={2.2} metalness={0.02} roughness={0.72} /></mesh>
+      <mesh position={[0, 1.45, DZ]}><planeGeometry args={[2 * W, 2.9]} /><meshStandardMaterial map={m.wall} bumpMap={m.wall} bumpScale={2} {...D} /></mesh>
+      <mesh position={[-W, 1.45, 0]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[9, 2.9]} /><meshStandardMaterial map={m.wall} bumpMap={m.wall} bumpScale={2} {...D} /></mesh>
+      <mesh position={[W, 1.45, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[9, 2.9]} /><meshStandardMaterial map={m.wall} bumpMap={m.wall} bumpScale={2} {...D} /></mesh>
       <mesh position={[0, 2.9, 0]} rotation={[Math.PI / 2, 0, 0]}><planeGeometry args={[2 * W, 9]} /><meshStandardMaterial color="#3a3b3c" {...D} /></mesh>
       <Bx p={[0, 0.07, DZ + 0.02]} s={[2 * W, 0.14, 0.04]} c="#4a4c4e" shadow={false} />
       <Bx p={[-W + 0.02, 0.07, 0]} s={[0.04, 0.14, 9]} c="#4a4c4e" shadow={false} /><Bx p={[W - 0.02, 0.07, 0]} s={[0.04, 0.14, 9]} c="#4a4c4e" shadow={false} />
