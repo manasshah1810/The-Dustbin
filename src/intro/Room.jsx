@@ -388,14 +388,15 @@ function Rig({ reduce, onReady, play }) {
     const dbg = new URLSearchParams(location.search).get('roomT');
     const t = dbg !== null ? +dbg : s.clock.elapsedTime - t0.current;
     // wide → close on the desk (read the sheet) → across to the dustbin → look in
-    const a = reduce ? 1 : ease(clamp01((t - 1.4) / 5.2)), b = reduce ? 1 : ease(clamp01((t - 8.0) / 3.8));
+    // one continuous eased glide along a smooth spline: wide -> desk (slows, never stops) -> bin
+    const u = reduce ? 1 : clamp01((t - 1.2) / 10.6), sm = u * u * u * (u * (u * 6 - 15) + 10), w = Math.min(1, sm + 0.06 * Math.sin(2 * Math.PI * sm) * (1 - Math.abs(2 * u - 1) * 0.0));
     const P0 = [-0.4, 1.5, 3.0], T0 = [0.7, 0.95, -2.6], P1 = [0.62, 1.2, -1.45], T1 = [0.6, 1.02, -3.2], P2 = [1.75, 0.98, -2.45], T2 = [1.75, 0.22, -3.1];
-    const lp = (A, B, u) => A.map((v, i) => mix(v, B[i], u));
-    const p = lp(lp(P0, P1, a), P2, b), g = lp(lp(T0, T1, a), T2, b);
+    const sp = (A, B, C, k) => { const c = new THREE.CatmullRomCurve3([new THREE.Vector3(...A), new THREE.Vector3(...B), new THREE.Vector3(...C)], false, 'centripetal'); return c.getPoint(k).toArray(); };
+    const p = sp(P0, P1, P2, w), g = sp(T0, T1, T2, w), b = w;
     const sway = reduce ? 0 : (1 - b * 0.8);
     camera.position.set(p[0] + Math.sin(t * 0.45) * 0.025 * sway, p[1] + Math.sin(t * 0.6) * 0.012 * sway, p[2]);
     camera.lookAt(g[0], g[1], g[2]);
-    const fov = mix(56, 40, a * 0.6 + b * 0.4); if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    const fov = mix(56, 40, w); if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   });
   return null;
 }
