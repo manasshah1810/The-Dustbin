@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /* ---------- tiny deterministic helpers ---------- */
@@ -121,12 +122,12 @@ function screenTex() {
 
 /* ---------- little builders ---------- */
 function crumple(r, seed) {
-  const g = new THREE.IcosahedronGeometry(r, 3), p = g.attributes.position, v = new THREE.Vector3();
-  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = hash(Math.round(v.x * 40) * 3 + Math.round(v.y * 40) * 17 + Math.round(v.z * 40) * 31 + seed); v.multiplyScalar(0.8 + n * 0.3 + (hash(Math.round(v.x * 90) + Math.round(v.y * 90) * 7 + seed * 13) - .5) * .12); p.setXYZ(i, v.x, v.y * (0.9 + hash(seed) * .2), v.z); }
+  let g = new THREE.IcosahedronGeometry(r, 3); g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g, 1e-4); const p = g.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = hash(Math.round(v.x * 40) * 3 + Math.round(v.y * 40) * 17 + Math.round(v.z * 40) * 31 + seed); const ridge = Math.abs(Math.sin(v.x * 70 / r * 0.07 + seed) * Math.sin(v.y * 64 / r * 0.07) * Math.sin(v.z * 80 / r * 0.07 + seed * 2)); v.multiplyScalar(0.8 + n * 0.3 - ridge * 0.14 + (hash(Math.round(v.x * 90) + Math.round(v.y * 90) * 7 + seed * 13) - .5) * .12); p.setXYZ(i, v.x, v.y * (0.9 + hash(seed) * .2), v.z); }
   g.computeVertexNormals(); return g;
 }
 function binGeometry() {
-  const pts = [[0, 0], [0.205, 0], [0.235, 0.02], [0.3, 0.55], [0.318, 0.575], [0.31, 0.595], [0.292, 0.58], [0.285, 0.565], [0.215, 0.05], [0, 0.04]].map(([a, b]) => new THREE.Vector2(a, b));
+  const pts = [[0, 0.012], [0.195, 0.012], [0.21, 0.0], [0.222, 0.0], [0.226, 0.03], [0.23, 0.06], [0.3, 0.55], [0.312, 0.57], [0.322, 0.585], [0.318, 0.605], [0.305, 0.608], [0.296, 0.595], [0.292, 0.575], [0.286, 0.56], [0.222, 0.07], [0.2, 0.05], [0, 0.05]].map(([a, b]) => new THREE.Vector2(a, b));
   const g = new THREE.LatheGeometry(pts, 40); const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) { const y = p.getY(i), x = p.getX(i), z = p.getZ(i), a = Math.atan2(z, x); const d = (hash(Math.round(a * 6) + Math.round(y * 9)) - .5) * .006 * (y > .1 ? 1 : 0); p.setX(i, x * (1 + d * 4)); p.setZ(i, z * (1 + d * 4)); }
   g.computeVertexNormals(); return g;
@@ -332,8 +333,12 @@ function Room() {
 
       {/* the dustbin: beside the desk, by the door */}
       <group position={[1.75, 0, -3.1]}>
-        <mesh geometry={m.bin} castShadow receiveShadow><meshStandardMaterial color="#505356" metalness={0.35} roughness={0.55} side={THREE.DoubleSide} /></mesh>
-        <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.28, 32]} /><meshStandardMaterial color="#0b0b0c" {...D} /></mesh>
+        <mesh geometry={m.bin} castShadow receiveShadow><meshStandardMaterial color="#5a5d60" metalness={0.55} roughness={0.42} side={THREE.DoubleSide} envMapIntensity={0.6} /></mesh>
+        <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.27, 32]} /><meshStandardMaterial color="#0b0b0c" {...D} /></mesh>
+        {[0.2, 0.36].map((y, i) => <mesh key={i} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow><torusGeometry args={[0.228 + y * 0.143, 0.006, 8, 48]} /><meshStandardMaterial color="#45484b" metalness={0.45} roughness={0.5} /></mesh>)}
+        <mesh position={[0, 0.595, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow><torusGeometry args={[0.31, 0.012, 10, 56]} /><meshStandardMaterial color="#6a6e72" metalness={0.6} roughness={0.35} /></mesh>
+        {[-1, 1].map((d) => <mesh key={d} position={[d * 0.318, 0.5, 0]} rotation={[0, 0, 0]} castShadow><torusGeometry args={[0.035, 0.008, 8, 20, Math.PI]} /><meshStandardMaterial color="#45484b" metalness={0.5} roughness={0.5} /></mesh>)}
+        <mesh position={[0.02, 0.3, 0.27]} scale={[1, 1.4, 0.4]}><sphereGeometry args={[0.04, 14, 10]} /><meshStandardMaterial color="#3c3f42" metalness={0.4} roughness={0.7} /></mesh>
         {[[0, 0.52, 0, 0], [-0.12, 0.5, 0.08, 1], [0.12, 0.51, -0.07, 2], [0.06, 0.47, 0.14, 3], [-0.13, 0.46, -0.1, 4], [0.15, 0.45, 0.09, 5]].map(([x, y, z, k], i) =>
           <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i) * 3, hash(i + 4) * 3, 0]} castShadow receiveShadow>{paperMat}</mesh>)}
       </group>
