@@ -4,7 +4,7 @@ import { morph } from './particles.js';
 const loadRoom = () => import('./Room.jsx');
 const Room = lazy(loadRoom);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-export const ROOM_MS = 11800;
+export const ROOM_MS = 12600;
 
 class Boundary extends Component {
   state = { bad: false };
