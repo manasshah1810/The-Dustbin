@@ -124,7 +124,8 @@ function screenTex() {
 function crumple(r, seed) {
   let g = new THREE.IcosahedronGeometry(r, 3); g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g, 1e-4); const p = g.attributes.position, v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = hash(Math.round(v.x * 40) * 3 + Math.round(v.y * 40) * 17 + Math.round(v.z * 40) * 31 + seed); const ridge = Math.abs(Math.sin(v.x * 70 / r * 0.07 + seed) * Math.sin(v.y * 64 / r * 0.07) * Math.sin(v.z * 80 / r * 0.07 + seed * 2)); v.multiplyScalar(0.8 + n * 0.3 - ridge * 0.14 + (hash(Math.round(v.x * 90) + Math.round(v.y * 90) * 7 + seed * 13) - .5) * .12); p.setXYZ(i, v.x, v.y * (0.9 + hash(seed) * .2), v.z); }
-  g.computeVertexNormals(); return g;
+  const uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); uv[i * 2] = (Math.atan2(z, x) / (2 * Math.PI) + 0.5) * 1.4 + seed * 0.13; uv[i * 2 + 1] = (y / r) * 0.5 + 0.5 + seed * 0.07; }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.computeVertexNormals(); return g;
 }
 function binGeometry() {
   const pts = [[0, 0.012], [0.195, 0.012], [0.21, 0.0], [0.222, 0.0], [0.226, 0.03], [0.23, 0.06], [0.3, 0.55], [0.312, 0.57], [0.322, 0.585], [0.318, 0.605], [0.305, 0.608], [0.296, 0.595], [0.292, 0.575], [0.286, 0.56], [0.222, 0.07], [0.2, 0.05], [0, 0.05]].map(([a, b]) => new THREE.Vector2(a, b));
@@ -168,6 +169,22 @@ function garmentTex(kind) {
   x.closePath(); x.fill();
   const t = new THREE.CanvasTexture(c); return t;
 }
+function paperTex() {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512; const x = c.getContext('2d');
+  x.fillStyle = '#e4e1da'; x.fillRect(0, 0, 512, 512);
+  x.strokeStyle = 'rgba(86,112,150,0.45)'; x.lineWidth = 1.4; for (let y = 38; y < 512; y += 30) { x.beginPath(); x.moveTo(0, y); x.lineTo(512, y); x.stroke(); }
+  x.strokeStyle = 'rgba(170,70,64,0.55)'; x.beginPath(); x.moveTo(64, 0); x.lineTo(64, 512); x.stroke();
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  for (let row = 0; row < 16; row++) {
+    const y = 34 + row * 30, inkBlue = hash(row * 7) > 0.35; x.strokeStyle = inkBlue ? 'rgba(28,44,98,0.85)' : 'rgba(30,30,34,0.8)'; x.lineWidth = 2;
+    let px = 74 + hash(row) * 14; const end = 300 + hash(row + 40) * 190; x.beginPath(); x.moveTo(px, y);
+    while (px < end) { px += 5 + hash(px + row) * 9; x.lineTo(px, y - 4 - hash(px * 3 + row) * 12 * (hash(px) > 0.5 ? 1 : 0.4)); px += 3 + hash(px * 2) * 5; x.lineTo(px, y + hash(px + 9) * 3); }
+    x.stroke();
+    if (hash(row * 13 + 5) > 0.82) { x.strokeStyle = 'rgba(160,40,36,0.85)'; x.lineWidth = 2.2; x.beginPath(); x.moveTo(70, y - 4); x.lineTo(end, y - 6); x.stroke(); }
+  }
+  x.strokeStyle = 'rgba(160,40,36,0.85)'; x.lineWidth = 3; x.beginPath(); x.arc(400, 120, 34, 0, 6.3); x.stroke(); x.lineWidth = 4; x.beginPath(); x.moveTo(110, 300); x.lineTo(240, 330); x.moveTo(130, 340); x.lineTo(250, 290); x.stroke();
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; return t;
+}
 function blobTex() {
   const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 4, 64, 64, 62);
   g.addColorStop(0, 'rgba(0,0,0,0.75)'); g.addColorStop(0.6, 'rgba(0,0,0,0.28)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
@@ -194,7 +211,7 @@ function Room() {
   const [fontReady, setFont] = useState(false);
   useEffect(() => { let on = true; const f = document.fonts; (f ? Promise.all([f.load('200px Caveat', 'Ans 2/30'), f.load('700 60px "Instrument Serif"', 'PAWAR'), f.load('34px "Space Grotesk"', 'Name')]) : Promise.resolve()).catch(() => {}).then(() => on && setFont(true)); return () => { on = false; }; }, []);
   const m = useMemo(() => ({ wall: wallTex(), floor: floorTex(), sheet: linenTex('#4a4f54', '#40454a'), pillow: linenTex('#767a7c', '#6b6f72'), rug: rugTex(), desk: woodTex('#4a4540'), shelf: woodTex('#3c3834'), door: woodTex('#4d4a45'),
-    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), blob: blobTex(), edge: edgeTex(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
+    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), blob: blobTex(), ptex: paperTex(), edge: edgeTex(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
     paper: [crumple(0.07, 1), crumple(0.08, 2), crumple(0.065, 3), crumple(0.075, 4), crumple(0.06, 5), crumple(0.08, 6), crumple(0.07, 7), crumple(0.06, 8)] }), []);
   const screen = useMemo(() => (fontReady ? screenTex() : null), [fontReady]);
   const glow = useRef(); const dust = useRef(); const gap = useRef();
@@ -205,7 +222,7 @@ function Room() {
     if (gap.current) gap.current.intensity = 0.9 + Math.sin(t * 0.35) * 0.12;
     if (dust.current) dust.current.rotation.y = t * 0.01, dust.current.position.y = Math.sin(t * 0.2) * 0.05;
   });
-  const paperMat = <meshStandardMaterial color="#dcd9d3" emissive="#3a3935" emissiveIntensity={0.5} {...D} />;
+  const paperMat = <meshStandardMaterial map={m.ptex} color="#e0ddd7" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.2} {...D} />;
   const W = 3.3, DZ = -3.6;
   return (
     <>
@@ -335,7 +352,7 @@ function Room() {
       <group position={[1.75, 0, -3.1]}>
         <mesh geometry={m.bin} castShadow receiveShadow><meshStandardMaterial color="#5a5d60" metalness={0.55} roughness={0.42} side={THREE.DoubleSide} envMapIntensity={0.6} /></mesh>
         <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.27, 32]} /><meshStandardMaterial color="#0b0b0c" {...D} /></mesh>
-        {[0.2, 0.36].map((y, i) => <mesh key={i} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow><torusGeometry args={[0.228 + y * 0.143, 0.006, 8, 48]} /><meshStandardMaterial color="#45484b" metalness={0.45} roughness={0.5} /></mesh>)}
+        {[0.2, 0.36].map((y, i) => <mesh key={i} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow><torusGeometry args={[0.2235 + y * 0.1429, 0.006, 8, 48]} /><meshStandardMaterial color="#45484b" metalness={0.45} roughness={0.5} /></mesh>)}
         <mesh position={[0, 0.595, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow><torusGeometry args={[0.31, 0.012, 10, 56]} /><meshStandardMaterial color="#6a6e72" metalness={0.6} roughness={0.35} /></mesh>
         {[-1, 1].map((d) => <mesh key={d} position={[d * 0.318, 0.5, 0]} rotation={[0, 0, 0]} castShadow><torusGeometry args={[0.035, 0.008, 8, 20, Math.PI]} /><meshStandardMaterial color="#45484b" metalness={0.5} roughness={0.5} /></mesh>)}
         <mesh position={[0.02, 0.3, 0.27]} scale={[1, 1.4, 0.4]}><sphereGeometry args={[0.04, 14, 10]} /><meshStandardMaterial color="#3c3f42" metalness={0.4} roughness={0.7} /></mesh>
@@ -343,7 +360,7 @@ function Room() {
           <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i) * 3, hash(i + 4) * 3, 0]} castShadow receiveShadow>{paperMat}</mesh>)}
       </group>
       {[[1.3, 0.06, -2.85, 6], [1.55, 0.06, -2.2, 7], [2.2, 0.06, -2.7, 1], [1.95, 0.06, -3.45, 2], [0.95, 0.06, -1.9, 3]].map(([x, y, z, k], i) =>
-        <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i + 20) * 3, hash(i + 24) * 3, 0]} castShadow receiveShadow><meshStandardMaterial color="#d3d0ca" emissive="#33322f" emissiveIntensity={0.5} {...D} /></mesh>)}
+        <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i + 20) * 3, hash(i + 24) * 3, 0]} castShadow receiveShadow><meshStandardMaterial map={m.ptex} color="#d3d0ca" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.18} {...D} /></mesh>)}
 
       {/* right wall: uniform on a hook, a poster, a clock */}
       <group position={[W - 0.06, 0, -1.2]} rotation={[0, -Math.PI / 2, 0]}>
