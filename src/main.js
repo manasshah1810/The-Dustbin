@@ -1,4 +1,5 @@
 import anime from 'animejs/lib/anime.es.js';
+import { glyphFace } from './glyphface.js';
 import './style.css';
 import { CHAPTERS, UI } from './story.js';
 import { playSlot, stopVoice, unlockVoice, setVoiceMuted } from './voice.js';
@@ -32,15 +33,7 @@ CHAPTERS.forEach((c, i) => {
       <p class="code line close"><span class="br">}</span><span class="op">;</span></p>
       ${i === 0 ? `<p class="begin-row"><button type="button" id="b-begin" class="link">begin<span class="op">(</span><span class="str">&quot;with sound&quot;</span><span class="op">)</span><span class="op">;</span></button><span class="or code"><span class="cm">// or just scroll</span></span></p>` : ''}
     </div>
-    <div class="side">${i === 0 ? `<figure class="portrait"><svg id="portrait" viewBox="0 0 200 230" role="img" aria-label="A friendly cartoon of the author: round glasses, short dark hair, a smile">
-<path d="M18 230c4-38 34-52 82-52s78 14 82 52z" fill="var(--cardink)"/>
-<rect x="84" y="150" width="32" height="36" rx="12" fill="#c9c6bf"/>
-<ellipse cx="100" cy="102" rx="60" ry="66" fill="#d6d3cc" stroke="var(--cardink)" stroke-width="5"/>
-<path d="M38 96C30 40 70 20 104 22c38 2 66 22 58 76-6-24-20-38-30-40-22 10-60 12-82-2-8 8-10 22-12 40z" fill="var(--cardink)"/>
-<g fill="none" stroke="var(--cardink)" stroke-width="5" stroke-linecap="round"><circle cx="72" cy="104" r="19" fill="#ecebe6" fill-opacity=".55"/><circle cx="128" cy="104" r="19" fill="#ecebe6" fill-opacity=".55"/><path d="M91 102q9-6 18 0M53 98l-14-4M147 98l14-4"/><path d="M76 136q24 22 48 0" stroke-width="6"/></g>
-<g class="eyes" fill="var(--cardink)"><circle cx="72" cy="106" r="5"/><circle cx="128" cy="106" r="5"/></g>
-<path d="M60 128q-6 4-4 10M140 128q6 4 4 10" fill="none" stroke="var(--cardink)" stroke-width="3" stroke-linecap="round" opacity=".5"/>
-</svg><span class="bubble" aria-hidden="true">that’s me</span><svg class="doodle" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 4l5 17 17 5-17 5-5 17-5-17-17-5 17-5z"/></svg></figure>` : ''}</div>`;
+    <div class="side">${i > 0 ? `<canvas class="gface mini" data-mood="${[1,-0.6,-0.3,0.4,0.9,0,0.7][i]}" aria-hidden="true"></canvas>` : ''}${i === 0 ? `<figure class="portrait"><canvas class="gface" role="img" aria-label="A face drawn out of code characters: brackets, colons and semicolons. Its eyes follow your cursor."></canvas><span class="bubble" aria-hidden="true">that’s me</span></figure>` : ''}</div>`;
   story.appendChild(s);
   const sec = { el: s, i, c, paper: null, played: false, cueEls: [...s.querySelectorAll('.cue')], intro: false };
   if (c.paperTitle) {
@@ -227,6 +220,15 @@ document.addEventListener('visibilitychange', () => { document.hidden ? audio.su
 })();
 
 /* ---------- portrait: a blink every few seconds, a tiny bob while the voice plays ---------- */
+document.querySelectorAll('canvas.gface').forEach((cv) => glyphFace(cv, { hero: !cv.classList.contains('mini'), mood: cv.dataset.mood != null ? +cv.dataset.mood : 0.9 }));
+// the background brackets drift against the cursor, and the cursor leaves a few behind
+addEventListener('pointermove', (e) => {
+  const r = document.documentElement.style; r.setProperty('--mx', (e.clientX / innerWidth - .5).toFixed(3)); r.setProperty('--my', (e.clientY / innerHeight - .5).toFixed(3));
+  if (reduce || e.pointerType === 'touch') return;
+  const now = performance.now(); if (now - (addEventListener.last || 0) < 70) return; addEventListener.last = now;
+  const t = document.createElement('i'); t.className = 'trail'; t.textContent = ['{','}',';',':','[',']','(',')','/','<','>'][(Math.random() * 11) | 0];
+  t.style.left = e.clientX + 'px'; t.style.top = e.clientY + 'px'; document.body.appendChild(t); setTimeout(() => t.remove(), 900);
+}, { passive: true });
 if (!reduce) {
   anime({ targets: '.portrait .eyes', scaleY: [1, 0.1, 1], duration: 220, easing: 'linear', loop: true, loopDelay: 3200 });
   anime({ targets: '.portrait .doodle', rotate: 360, duration: 9000, easing: 'linear', loop: true });
