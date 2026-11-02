@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /* ---------- tiny deterministic helpers ---------- */
 const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -146,9 +147,11 @@ function clothGeometry() {
   g.computeVertexNormals(); return g;
 }
 const D = { roughness: 0.92, metalness: 0 };
-const Bx = ({ p, s, c, tex, shadow = true, rot, r = 0.9, ...o }) => (
-  <mesh position={p} rotation={rot} castShadow={shadow} receiveShadow><boxGeometry args={s} /><meshStandardMaterial color={c} map={tex} roughness={r} metalness={0} {...o} /></mesh>
-);
+const Bx = ({ p, s, c, tex, shadow = true, rot, r = 0.9, round, ...o }) => {
+  const rad = Math.min(round ?? 0.014, Math.min(s[0], s[1], s[2]) * 0.45);
+  const geo = useMemo(() => new RoundedBoxGeometry(s[0], s[1], s[2], 3, rad), [s[0], s[1], s[2], rad]);
+  return <mesh position={p} rotation={rot} castShadow={shadow} receiveShadow geometry={geo}><meshStandardMaterial color={c} map={tex} roughness={r} metalness={0} {...o} /></mesh>;
+};
 
 /* ---------- scene ---------- */
 const BOOKS = (() => { const cols = ['#4b5258', '#5b5f58', '#3f464c', '#6a625a', '#495550', '#58504b', '#6b7378', '#3a3f44', '#5e5a55', '#51616a'], out = []; let seed = 0;
@@ -159,7 +162,7 @@ function Room() {
   const [fontReady, setFont] = useState(false);
   useEffect(() => { let on = true; const f = document.fonts; (f ? Promise.all([f.load('200px Caveat', 'Ans 2/30'), f.load('700 60px "Instrument Serif"', 'PAWAR'), f.load('34px "Space Grotesk"', 'Name')]) : Promise.resolve()).catch(() => {}).then(() => on && setFont(true)); return () => { on = false; }; }, []);
   const m = useMemo(() => ({ wall: wallTex(), floor: floorTex(), sheet: linenTex('#4a4f54', '#40454a'), pillow: linenTex('#767a7c', '#6b6f72'), rug: rugTex(), desk: woodTex('#4a4540'), shelf: woodTex('#3c3834'), door: woodTex('#4d4a45'),
-    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(),
+    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
     paper: [crumple(0.07, 1), crumple(0.08, 2), crumple(0.065, 3), crumple(0.075, 4), crumple(0.06, 5), crumple(0.08, 6), crumple(0.07, 7), crumple(0.06, 8)] }), []);
   const screen = useMemo(() => (fontReady ? screenTex() : null), [fontReady]);
   const glow = useRef(); const dust = useRef(); const gap = useRef();
@@ -219,12 +222,12 @@ function Room() {
 
       {/* bed, unmade */}
       <group position={[-2.45, 0, -1.9]} rotation={[0, 0.03, 0]}>
-        <Bx p={[0, 0.17, 0]} s={[1.12, 0.22, 2.1]} c="#2f3133" />
+        <Bx p={[0, 0.17, 0]} s={[1.12, 0.22, 2.1]} c="#2f3133" round={0.04} />
         {[[-.5, -1], [.5, -1], [-.5, 1], [.5, 1]].map(([x, z], i) => <Bx key={i} p={[x, 0.04, z]} s={[0.07, 0.08, 0.07]} c="#222" shadow={false} />)}
-        <mesh position={[0, 0.4, 0]} castShadow receiveShadow><boxGeometry args={[1.04, 0.24, 2.02]} /><meshStandardMaterial map={m.sheet} {...D} /></mesh>
+        <mesh position={[0, 0.4, 0]} castShadow receiveShadow geometry={m.mattress}><meshStandardMaterial map={m.sheet} {...D} /></mesh>
         <mesh position={[0, 0.535, 0.2]} castShadow receiveShadow geometry={m.blanket} rotation={[0, 0.07, 0]}><meshStandardMaterial map={m.sheet} color="#9aa0a4" {...D} side={THREE.DoubleSide} /></mesh>
         <mesh position={[0.05, 0.62, -0.74]} scale={[0.5, 0.15, 0.31]} rotation={[0.08, 0.14, 0.02]} castShadow><sphereGeometry args={[1, 28, 20]} /><meshStandardMaterial map={m.pillow} {...D} /></mesh>
-        <Bx p={[0, 0.85, -1.06]} s={[1.12, 0.55, 0.06]} c="#2c2e30" />
+        <Bx p={[0, 0.85, -1.06]} s={[1.12, 0.55, 0.07]} c="#2c2e30" round={0.03} />
         <mesh position={[-0.05, 0.64, 0.7]} scale={[0.5, 0.1, 0.35]} rotation={[0, 0.5, 0]}><sphereGeometry args={[1, 18, 12]} /><meshStandardMaterial color="#555b60" {...D} /></mesh>
       </group>
       {/* clothes on the floor, shoes */}
@@ -277,12 +280,12 @@ function Room() {
       <Bx p={[0.2, 1.8, DZ + 0.01]} s={[0.84, 0.64, 0.02]} c="#2f2c28" shadow={false} />
       {/* chair, pulled out */}
       <group position={[-0.55, 0, -2.3]} rotation={[0, 2.2, 0]}>
-        <Bx p={[0, 0.46, 0]} s={[0.46, 0.05, 0.46]} c="#454a4e" /><Bx p={[0, 0.8, -0.22]} s={[0.44, 0.5, 0.04]} c="#454a4e" />
+        <Bx p={[0, 0.46, 0]} s={[0.46, 0.06, 0.46]} c="#454a4e" round={0.025} /><Bx p={[0, 0.8, -0.22]} s={[0.42, 0.46, 0.04]} c="#454a4e" round={0.02} rot={[-0.08, 0, 0]} />
         {[[-.2, -.2], [.2, -.2], [-.2, .2], [.2, .2]].map(([x, z], i) => <Bx key={i} p={[x, 0.22, z]} s={[0.04, 0.44, 0.04]} c="#1f2021" />)}
       </group>
       {/* school bag on the floor */}
       <group position={[1.15, 0, -2.45]} rotation={[0, -0.5, 0.0]}>
-        <Bx p={[0, 0.22, 0]} s={[0.34, 0.44, 0.2]} c="#363f45" r={0.8} /><Bx p={[0, 0.12, 0.13]} s={[0.26, 0.2, 0.07]} c="#2d3539" /><Bx p={[0, 0.34, 0.11]} s={[0.1, 0.03, 0.01]} c="#7b8286" shadow={false} />
+        <Bx p={[0, 0.22, 0]} s={[0.34, 0.44, 0.2]} c="#363f45" r={0.8} round={0.07} /><Bx p={[0, 0.12, 0.13]} s={[0.26, 0.2, 0.07]} c="#2d3539" /><Bx p={[0, 0.34, 0.11]} s={[0.1, 0.03, 0.01]} c="#7b8286" shadow={false} />
         <Bx p={[-0.13, 0.28, -0.11]} s={[0.04, 0.34, 0.02]} c="#222a2e" /><Bx p={[0.13, 0.28, -0.11]} s={[0.04, 0.34, 0.02]} c="#222a2e" />
       </group>
 
