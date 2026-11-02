@@ -129,9 +129,9 @@ function crumple(r, seed) {
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i).normalize(); let d1 = 9, d2 = 9, k = 0;
     for (let j = 0; j < N; j++) { const d = Math.acos(Math.max(-1, Math.min(1, v.x * S[j][0] + v.y * S[j][1] + v.z * S[j][2]))); if (d < d1) { d2 = d1; d1 = d; k = j; } else if (d < d2) d2 = d; }
-    const crease = 1 - ss(0, 0.16, d2 - d1), fine = (hash(Math.round(v.x * 60) * 3 + Math.round(v.y * 60) * 17 + Math.round(v.z * 60) * 31 + seed) - 0.5) * 0.04;
-    const sh = 1 - crease * 0.42 - (S[k][3] - 0.95) * 0.5; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = sh;
-    const rr = r * (S[k][3] - crease * 0.16 + fine);
+    const crease = 1 - ss(0, 0.2, d2 - d1), fine = (hash(Math.round(v.x * 60) * 3 + Math.round(v.y * 60) * 17 + Math.round(v.z * 60) * 31 + seed) - 0.5) * 0.04;
+    const sh = 1 - crease * 0.55 - (S[k][3] - 0.95) * 0.5; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = sh;
+    const rr = r * (S[k][3] - crease * 0.27 + fine);
     p.setXYZ(i, v.x * rr, v.y * rr * (0.92 + hash(seed) * 0.16), v.z * rr);
   }
   const uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); uv[i * 2] = (Math.atan2(z, x) / (2 * Math.PI) + 0.5) * 1.4 + seed * 0.13; uv[i * 2 + 1] = (y / r) * 0.5 + 0.5 + seed * 0.07; }
@@ -195,6 +195,13 @@ function paperTex() {
   x.strokeStyle = 'rgba(160,40,36,0.85)'; x.lineWidth = 3; x.beginPath(); x.arc(400, 120, 34, 0, 6.3); x.stroke(); x.lineWidth = 4; x.beginPath(); x.moveTo(110, 300); x.lineTo(240, 330); x.moveTo(130, 340); x.lineTo(250, 290); x.stroke();
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
+function paperBump() {
+  const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d');
+  x.fillStyle = '#808080'; x.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 260; i++) { const a = hash(i * 3) * 6.283, l = 30 + hash(i * 5 + 1) * 110, sx = hash(i * 7 + 2) * 512, sy = hash(i * 11 + 3) * 512; x.strokeStyle = hash(i) > 0.5 ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)'; x.lineWidth = 0.8 + hash(i * 13) * 1.6; x.beginPath(); x.moveTo(sx, sy); x.lineTo(sx + Math.cos(a) * l * 0.5 + (hash(i + 9) - .5) * 14, sy + Math.sin(a) * l * 0.5); x.lineTo(sx + Math.cos(a) * l, sy + Math.sin(a) * l + (hash(i + 4) - .5) * 20); x.stroke(); }
+  const im = x.getImageData(0, 0, 512, 512), d = im.data; for (let i = 0; i < d.length; i += 4) { const n = (hash(i * 0.37) - 0.5) * 26; d[i] += n; d[i + 1] += n; d[i + 2] += n; } x.putImageData(im, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+}
 function blobTex() {
   const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 4, 64, 64, 62);
   g.addColorStop(0, 'rgba(0,0,0,0.75)'); g.addColorStop(0.6, 'rgba(0,0,0,0.28)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
@@ -221,7 +228,7 @@ function Room() {
   const [fontReady, setFont] = useState(false);
   useEffect(() => { let on = true; const f = document.fonts; (f ? Promise.all([f.load('200px Caveat', 'Ans 2/30'), f.load('700 60px "Instrument Serif"', 'PAWAR'), f.load('34px "Space Grotesk"', 'Name')]) : Promise.resolve()).catch(() => {}).then(() => on && setFont(true)); return () => { on = false; }; }, []);
   const m = useMemo(() => ({ wall: wallTex(), floor: floorTex(), sheet: linenTex('#4a4f54', '#40454a'), pillow: linenTex('#767a7c', '#6b6f72'), rug: rugTex(), desk: woodTex('#4a4540'), shelf: woodTex('#3c3834'), door: woodTex('#4d4a45'),
-    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), blob: blobTex(), ptex: paperTex(), edge: edgeTex(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
+    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), blob: blobTex(), ptex: paperTex(), pbump: paperBump(), edge: edgeTex(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
     paper: [crumple(0.07, 1), crumple(0.08, 2), crumple(0.065, 3), crumple(0.075, 4), crumple(0.06, 5), crumple(0.08, 6), crumple(0.07, 7), crumple(0.06, 8)] }), []);
   const screen = useMemo(() => (fontReady ? screenTex() : null), [fontReady]);
   const glow = useRef(); const dust = useRef(); const gap = useRef();
@@ -232,7 +239,7 @@ function Room() {
     if (gap.current) gap.current.intensity = 0.9 + Math.sin(t * 0.35) * 0.12;
     if (dust.current) dust.current.rotation.y = t * 0.01, dust.current.position.y = Math.sin(t * 0.2) * 0.05;
   });
-  const paperMat = <meshStandardMaterial vertexColors map={m.ptex} color="#e0ddd7" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.08} {...D} />;
+  const paperMat = <meshStandardMaterial vertexColors bumpMap={m.pbump} bumpScale={2.2} map={m.ptex} color="#e0ddd7" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.08} {...D} />;
   const W = 3.3, DZ = -3.6;
   return (
     <>
@@ -370,7 +377,7 @@ function Room() {
           <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i) * 3, hash(i + 4) * 3, 0]} castShadow receiveShadow>{paperMat}</mesh>)}
       </group>
       {[[1.3, 0.06, -2.85, 6], [1.55, 0.06, -2.2, 7], [2.2, 0.06, -2.7, 1], [1.95, 0.06, -3.45, 2], [0.95, 0.06, -1.9, 3]].map(([x, y, z, k], i) =>
-        <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i + 20) * 3, hash(i + 24) * 3, 0]} castShadow receiveShadow><meshStandardMaterial vertexColors map={m.ptex} color="#d3d0ca" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.08} {...D} /></mesh>)}
+        <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i + 20) * 3, hash(i + 24) * 3, 0]} castShadow receiveShadow><meshStandardMaterial vertexColors bumpMap={m.pbump} bumpScale={2.2} map={m.ptex} color="#d3d0ca" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.08} {...D} /></mesh>)}
 
       {/* right wall: uniform on a hook, a poster, a clock */}
       <group position={[W - 0.06, 0, -1.2]} rotation={[0, -Math.PI / 2, 0]}>
