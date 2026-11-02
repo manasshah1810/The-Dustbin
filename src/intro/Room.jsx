@@ -248,12 +248,13 @@ function Room() {
         <Bx p={[-0.7, 0.37, 0]} s={[0.05, 0.74, 0.62]} c="#38342f" tex={m.desk} /><Bx p={[0.7, 0.37, 0]} s={[0.05, 0.74, 0.62]} c="#38342f" tex={m.desk} />
         <Bx p={[0, 0.3, -0.3]} s={[1.4, 0.4, 0.02]} c="#34302c" tex={m.desk} />
         <Bx p={[0.42, 0.58, 0.02]} s={[0.6, 0.16, 0.56]} c="#3f3b36" tex={m.desk} />
-        <group position={[-0.08, 0.775, 0.0]} rotation={[0, -0.05, 0]} scale={1.9}>
-          <mesh position={[0, 0.01, 0.1]} castShadow><boxGeometry args={[0.38, 0.02, 0.26]} /><meshStandardMaterial color="#4a4c4f" metalness={0.5} roughness={0.5} /></mesh>
-          <mesh position={[0, 0.0212, 0.1]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[0.36, 0.25]} /><meshStandardMaterial map={m.keys} roughness={0.6} /></mesh>
-          <group position={[0, 0.02, -0.03]} rotation={[-0.2, 0, 0]}>
-            <mesh position={[0, 0.125, 0]} castShadow><boxGeometry args={[0.38, 0.25, 0.012]} /><meshStandardMaterial color="#303234" metalness={0.5} roughness={0.5} /></mesh>
-            <mesh position={[0, 0.125, 0.0075]}><planeGeometry args={[0.35, 0.219]} />{screen ? <meshBasicMaterial map={screen} toneMapped={false} /> : <meshBasicMaterial color="#1b1d1f" />}</mesh>
+        <group position={[-0.08, 0.775, 0.0]} rotation={[0, -0.05, 0]} scale={1.55}>
+          <mesh position={[0, 0.006, 0.1]} castShadow><boxGeometry args={[0.36, 0.011, 0.25]} /><meshStandardMaterial color="#8d9094" metalness={0.7} roughness={0.38} /></mesh>
+          <mesh position={[0, 0.0121, 0.1]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[0.345, 0.235]} /><meshStandardMaterial map={m.keys} roughness={0.6} /></mesh>
+          <mesh position={[0, 0.011, -0.03]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.005, 0.005, 0.3, 10]} /><meshStandardMaterial color="#6f7276" metalness={0.7} roughness={0.4} /></mesh>
+          <group position={[0, 0.011, -0.03]} rotation={[-0.3, 0, 0]}>
+            <mesh position={[0, 0.115, 0]} castShadow><boxGeometry args={[0.36, 0.23, 0.007]} /><meshStandardMaterial color="#8d9094" metalness={0.7} roughness={0.38} /></mesh>
+            <mesh position={[0, 0.115, 0.0042]}><planeGeometry args={[0.345, 0.216]} />{screen ? <meshBasicMaterial map={screen} toneMapped={false} /> : <meshBasicMaterial color="#1b1d1f" />}</mesh>
           </group>
         </group>
         {/* study lamp, off */}
