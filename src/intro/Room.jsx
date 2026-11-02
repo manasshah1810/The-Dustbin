@@ -167,6 +167,16 @@ function garmentTex(kind) {
   x.closePath(); x.fill();
   const t = new THREE.CanvasTexture(c); return t;
 }
+function blobTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 4, 64, 64, 62);
+  g.addColorStop(0, 'rgba(0,0,0,0.75)'); g.addColorStop(0.6, 'rgba(0,0,0,0.28)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+function edgeTex() {
+  const c = document.createElement('canvas'); c.width = 4; c.height = 128; const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, 'rgba(0,0,0,0.8)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 4, 128);
+  return new THREE.CanvasTexture(c);
+}
 const D = { roughness: 0.92, metalness: 0 };
 const Bx = ({ p, s, c, tex, shadow = true, rot, r = 0.9, round, ...o }) => {
   const rad = Math.min(round ?? 0.014, Math.min(s[0], s[1], s[2]) * 0.45);
@@ -183,7 +193,7 @@ function Room() {
   const [fontReady, setFont] = useState(false);
   useEffect(() => { let on = true; const f = document.fonts; (f ? Promise.all([f.load('200px Caveat', 'Ans 2/30'), f.load('700 60px "Instrument Serif"', 'PAWAR'), f.load('34px "Space Grotesk"', 'Name')]) : Promise.resolve()).catch(() => {}).then(() => on && setFont(true)); return () => { on = false; }; }, []);
   const m = useMemo(() => ({ wall: wallTex(), floor: floorTex(), sheet: linenTex('#4a4f54', '#40454a'), pillow: linenTex('#767a7c', '#6b6f72'), rug: rugTex(), desk: woodTex('#4a4540'), shelf: woodTex('#3c3834'), door: woodTex('#4d4a45'),
-    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
+    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), blob: blobTex(), edge: edgeTex(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
     paper: [crumple(0.07, 1), crumple(0.08, 2), crumple(0.065, 3), crumple(0.075, 4), crumple(0.06, 5), crumple(0.08, 6), crumple(0.07, 7), crumple(0.06, 8)] }), []);
   const screen = useMemo(() => (fontReady ? screenTex() : null), [fontReady]);
   const glow = useRef(); const dust = useRef(); const gap = useRef();
@@ -217,6 +227,16 @@ function Room() {
       <Bx p={[0, 0.07, DZ + 0.02]} s={[2 * W, 0.14, 0.04]} c="#4a4c4e" shadow={false} />
       <Bx p={[-W + 0.02, 0.07, 0]} s={[0.04, 0.14, 9]} c="#4a4c4e" shadow={false} /><Bx p={[W - 0.02, 0.07, 0]} s={[0.04, 0.14, 9]} c="#4a4c4e" shadow={false} />
       <mesh position={[0, 2.88, DZ + 0.01]}><boxGeometry args={[2 * W, 0.04, 0.04]} /><meshStandardMaterial color="#47494b" {...D} /></mesh>
+      {/* depth: darkened corners (fake occlusion), dado rail, soft contact shadows */}
+      <mesh position={[0, 2.62, DZ + 0.02]}><planeGeometry args={[2 * W, 0.56]} /><meshBasicMaterial map={m.edge} transparent depthWrite={false} /></mesh>
+      <mesh position={[-W + 0.02, 2.62, 0]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[9, 0.56]} /><meshBasicMaterial map={m.edge} transparent depthWrite={false} /></mesh>
+      <mesh position={[W - 0.02, 2.62, 0]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[9, 0.56]} /><meshBasicMaterial map={m.edge} transparent depthWrite={false} /></mesh>
+      <mesh position={[0, 0.3, DZ + 0.02]} rotation={[0, 0, Math.PI]}><planeGeometry args={[2 * W, 0.4]} /><meshBasicMaterial map={m.edge} transparent opacity={0.7} depthWrite={false} /></mesh>
+      <mesh position={[-W + 0.03, 1.45, DZ + 0.03]}><planeGeometry args={[0.12, 2.9]} /><meshBasicMaterial map={m.edge} transparent opacity={0.6} depthWrite={false} /></mesh>
+      <Bx p={[0, 1.02, DZ + 0.03]} s={[2 * W, 0.035, 0.05]} c="#464a4d" shadow={false} />
+      <Bx p={[-W + 0.03, 1.02, 0]} s={[0.05, 0.035, 9]} c="#464a4d" shadow={false} /><Bx p={[W - 0.03, 1.02, 0]} s={[0.05, 0.035, 9]} c="#464a4d" shadow={false} />
+      {[[-2.45, -1.9, 1.6, 2.7], [0.7, -3.15, 1.9, 1.0], [1.75, -3.1, 0.9, 0.9], [-0.55, -2.3, 0.8, 0.8], [1.15, -2.45, 0.6, 0.5], [-1.5, -0.55, 1.0, 0.8]].map(([x, z, w, d], i) =>
+        <mesh key={i} position={[x, 0.012, z]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[w, d]} /><meshBasicMaterial map={m.blob} transparent opacity={0.85} depthWrite={false} /></mesh>)}
       {/* tube light, off */}
       <Bx p={[0, 2.84, -0.6]} s={[0.16, 0.05, 1.2]} c="#8a8e90" shadow={false} />
 
@@ -224,7 +244,7 @@ function Room() {
       <group position={[-1.5, 1.7, DZ + 0.01]}>
         <mesh><planeGeometry args={[0.95, 1.2]} /><meshBasicMaterial color="#8a9298" toneMapped={false} /></mesh>
         {[-0.38, -0.12, 0.14, 0.4].map((y, i) => <mesh key={i} position={[0, y, 0.02]}><boxGeometry args={[0.95, 0.05, 0.01]} /><meshStandardMaterial color="#686b6e" {...D} /></mesh>)}
-        <Bx p={[0, 0.62, 0.02]} s={[1.08, 0.06, 0.07]} c="#3a3c3f" shadow={false} /><Bx p={[0, -0.62, 0.04]} s={[1.14, 0.07, 0.1]} c="#3a3c3f" shadow={false} />
+        <Bx p={[0, 0.62, 0.03]} s={[1.08, 0.07, 0.09]} c="#3a3c3f" shadow={false} /><Bx p={[0, -0.62, 0.04]} s={[1.14, 0.07, 0.1]} c="#3a3c3f" shadow={false} />
         <Bx p={[-0.51, 0, 0.02]} s={[0.06, 1.3, 0.07]} c="#3a3c3f" shadow={false} /><Bx p={[0.51, 0, 0.02]} s={[0.06, 1.3, 0.07]} c="#3a3c3f" shadow={false} />
         <mesh geometry={m.curtain} position={[-0.72, -0.05, 0.1]} castShadow><meshStandardMaterial color="#3c4348" {...D} side={THREE.DoubleSide} /></mesh>
         <mesh geometry={m.curtain} position={[0.72, -0.05, 0.1]} castShadow><meshStandardMaterial color="#3c4348" {...D} side={THREE.DoubleSide} /></mesh>
