@@ -165,6 +165,32 @@ function blanketGeometry() {
   for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i); const f = Math.sin(x * 9 + z * 5) * .018 + Math.sin(x * 4 - z * 11 + 1) * .022 + (hash(i) - .5) * .008; const edge = Math.max(0, Math.abs(x) - .42) * 1.5; p.setY(i, f - edge * edge * 4 + Math.max(0, z - .45) * -.05); }
   g.computeVertexNormals(); return g;
 }
+function duvetGeometry() {
+  /* a duvet thrown over the mattress: hangs down the sides, bunched and folded back at the top */
+  const g = new THREE.PlaneGeometry(1.44, 1.5, 72, 80); g.rotateX(-Math.PI / 2); const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), ax = Math.abs(x), over = Math.max(0, ax - 0.5);
+    let y = -Math.pow(over / 0.22, 1.5) * 0.2;                                    /* hangs over the edge */
+    y -= over > 0 ? Math.min(0.0, 0) : 0;
+    const fold = Math.sin(x * 14 + z * 3) * 0.012 + Math.sin(x * 6 - z * 9 + 2) * 0.016 + Math.sin(z * 23 + x * 5) * 0.006 + (hash(i * 1.3) - .5) * 0.004;
+    const bunch = Math.exp(-Math.pow((z + 0.45) * 3.2, 2)) * (0.035 + Math.sin(x * 12) * 0.02);   /* folded-back ridge */
+    const hang = over > 0 ? Math.sin(z * 17 + x * 4) * 0.03 * Math.min(1, over / 0.15) : 0;
+    p.setY(i, y + fold + bunch);
+    p.setX(i, x + Math.sign(x) * (over > 0 ? hang : 0));
+  }
+  g.computeVertexNormals(); return g;
+}
+function pillowGeometry() {
+  const g = new THREE.SphereGeometry(1, 44, 30), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const pinch = Math.pow(Math.abs(x), 3) * 0.55, dent = Math.exp(-(x * x + z * z) * 3.2) * 0.22 * (y > 0 ? 1 : 0);
+    const wr = Math.sin(x * 9 + z * 4) * 0.025 + Math.sin(z * 13 - x * 5) * 0.02 + (hash(i * 1.7) - .5) * 0.01;
+    y = y * (1 - pinch) - dent + wr * (y > 0 ? 1 : 0.3); x *= 1 + z * z * 0.05;
+    p.setXYZ(i, x, y, z);
+  }
+  g.computeVertexNormals(); return g;
+}
 function curtainGeometry(w, h) {
   const g = new THREE.PlaneGeometry(w, h, 24, 4), p = g.attributes.position;
   for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) * 22) * 0.035 + Math.sin(p.getX(i) * 9 + 1) * 0.015);
@@ -245,7 +271,7 @@ function Room() {
   const [fontReady, setFont] = useState(false);
   useEffect(() => { let on = true; const f = document.fonts; (f ? Promise.all([f.load('200px Caveat', 'Ans 2/30'), f.load('700 60px "Instrument Serif"', 'PAWAR'), f.load('34px "Space Grotesk"', 'Name')]) : Promise.resolve()).catch(() => {}).then(() => on && setFont(true)); return () => { on = false; }; }, []);
   const m = useMemo(() => ({ wall: wallTex(), floor: floorTex(), sheet: linenTex('#4a4f54', '#40454a'), pillow: linenTex('#767a7c', '#6b6f72'), rug: rugTex(), desk: woodTex('#4a4540'), shelf: woodTex('#3c3834'), door: woodTex('#4d4a45'),
-    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), blob: blobTex(), ptex: paperTex(), pbump: paperBump(), edge: edgeTex(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
+    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(), duvet: duvetGeometry(), pillowG: pillowGeometry(), blob: blobTex(), ptex: paperTex(), pbump: paperBump(), edge: edgeTex(), shirtG: drapeGeometry(0.62, 0.7, 0.03, 1), pantsG: drapeGeometry(0.4, 0.85, 0.025, 4), shirtA: garmentTex('shirt'), pantsA: garmentTex('pants'), mattress: new RoundedBoxGeometry(1.04, 0.24, 2.02, 5, 0.07),
     paper: [crumple(0.07, 1), crumple(0.08, 2), crumple(0.065, 3), crumple(0.075, 4), crumple(0.06, 5), crumple(0.08, 6), crumple(0.07, 7), crumple(0.06, 8)] }), []);
   const screen = useMemo(() => (fontReady ? screenTex() : null), [fontReady]);
   const glow = useRef(); const dust = useRef(); const gap = useRef();
@@ -315,13 +341,18 @@ function Room() {
 
       {/* bed, unmade */}
       <group position={[-2.45, 0, -1.9]} rotation={[0, 0.03, 0]}>
-        <Bx p={[0, 0.17, 0]} s={[1.12, 0.22, 2.1]} c="#2f3133" round={0.04} />
-        {[[-.5, -1], [.5, -1], [-.5, 1], [.5, 1]].map(([x, z], i) => <Bx key={i} p={[x, 0.04, z]} s={[0.07, 0.08, 0.07]} c="#222" shadow={false} />)}
-        <mesh position={[0, 0.4, 0]} castShadow receiveShadow geometry={m.mattress}><meshStandardMaterial map={m.sheet} {...D} /></mesh>
-        <mesh position={[0, 0.535, 0.2]} castShadow receiveShadow geometry={m.blanket} rotation={[0, 0.07, 0]}><meshStandardMaterial map={m.sheet} color="#9aa0a4" {...D} side={THREE.DoubleSide} /></mesh>
-        <mesh position={[0.05, 0.62, -0.74]} scale={[0.5, 0.15, 0.31]} rotation={[0.08, 0.14, 0.02]} castShadow><sphereGeometry args={[1, 28, 20]} /><meshStandardMaterial map={m.pillow} {...D} /></mesh>
-        <Bx p={[0, 0.85, -1.06]} s={[1.12, 0.55, 0.07]} c="#2c2e30" round={0.03} />
-        <mesh position={[-0.05, 0.64, 0.7]} scale={[0.5, 0.1, 0.35]} rotation={[0, 0.5, 0]}><sphereGeometry args={[1, 18, 12]} /><meshStandardMaterial color="#555b60" {...D} /></mesh>
+        {/* wooden frame on legs, a slatted headboard and a low footboard */}
+        <Bx p={[0, 0.2, 0]} s={[1.14, 0.1, 2.12]} c="#3a342f" tex={m.desk} round={0.02} />
+        {[[-.54, -1.02], [.54, -1.02], [-.54, 1.02], [.54, 1.02]].map(([x, z], i) => <Bx key={i} p={[x, 0.08, z]} s={[0.07, 0.16, 0.07]} c="#2c2723" round={0.02} />)}
+        <Bx p={[0, 0.78, -1.07]} s={[1.18, 0.7, 0.06]} c="#3a342f" tex={m.desk} round={0.03} />
+        {[-0.45, -0.22, 0, 0.22, 0.45].map((x, i) => <Bx key={i} p={[x, 0.82, -1.03]} s={[0.07, 0.5, 0.03]} c="#2f2a26" round={0.012} />)}
+        <Bx p={[0, 0.34, 1.07]} s={[1.18, 0.3, 0.05]} c="#3a342f" tex={m.desk} round={0.025} />
+        {/* mattress with piping, fitted sheet, then the duvet and pillows */}
+        <mesh position={[0, 0.4, 0]} castShadow receiveShadow geometry={m.mattress}><meshStandardMaterial map={m.sheet} color="#8b9195" {...D} /></mesh>
+        <mesh position={[0, 0.52, 0.12]} castShadow receiveShadow geometry={m.duvet} rotation={[0, 0.04, 0]}><meshStandardMaterial map={m.sheet} color="#939a9e" bumpMap={m.sheet} bumpScale={1.5} {...D} side={THREE.DoubleSide} /></mesh>
+        <mesh position={[-0.2, 0.62, -0.78]} scale={[0.4, 0.14, 0.27]} rotation={[0.06, 0.1, 0.02]} geometry={m.pillowG} castShadow receiveShadow><meshStandardMaterial map={m.pillow} color="#b8bcbe" {...D} /></mesh>
+        <mesh position={[0.28, 0.6, -0.8]} scale={[0.38, 0.13, 0.26]} rotation={[0.04, -0.2, -0.03]} geometry={m.pillowG} castShadow receiveShadow><meshStandardMaterial map={m.pillow} color="#a9adaf" {...D} /></mesh>
+        <mesh position={[-0.05, 0.6, 0.78]} scale={[0.46, 0.06, 0.3]} rotation={[0, 0.5, 0]} geometry={m.pillowG} castShadow><meshStandardMaterial color="#555b60" {...D} /></mesh>
       </group>
       {/* clothes on the floor, shoes */}
       <mesh geometry={m.cloth} position={[-1.55, 0.04, -0.7]} rotation={[0, 0.6, 0]} castShadow><meshStandardMaterial color="#555b5f" {...D} /></mesh>
