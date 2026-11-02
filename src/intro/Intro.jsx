@@ -18,7 +18,7 @@ const Chars = ({ text, base }) => (
 
 export default function Intro({ onDone }) {
   const [stage, setStage] = useState('gate');      // gate → morph → (room) → out
-  const [roomOn, setRoomOn] = useState(false);
+  const [roomOn, setRoomOn] = useState(false), [warm, setWarm] = useState(false);
   const [skipOn, setSkipOn] = useState(false);
   const [dark, setDark] = useState(false);
   const canvas = useRef(), labels = useRef([]), timers = useRef([]), done = useRef(false), ready = useRef(false);
@@ -30,7 +30,7 @@ export default function Intro({ onDone }) {
     setTimeout(onDone, reduce ? 120 : 850);
   }, [onDone]);
 
-  useEffect(() => { loadRoom().catch(() => {}); }, []);                       // warm the 3D chunk while they decide
+  useEffect(() => { let t; loadRoom().then(() => { t = setTimeout(() => setWarm(true), 900); }).catch(() => {}); return () => clearTimeout(t); }, []);   // build the room, hidden, while they read the gate                       // warm the 3D chunk while they decide
   useEffect(() => {
     const k = (e) => { if (e.key === 'Escape' && stage !== 'gate') finish(); };
     const s = () => finish();
@@ -42,15 +42,14 @@ export default function Intro({ onDone }) {
     if (stage !== 'gate') return;
     setStage('morph');
     dispatchEvent(new CustomEvent('dustbin:begin', { detail: { sound } }));
-    const showSpeaker = () => { document.body.classList.add('speaker-on'); setSkipOn(true); };
+    const showSpeaker = () => { document.body.classList.add('speaker-on'); setSkipOn(true); setRoomOn(true); later(() => { const c = canvas.current; c && c.getContext('2d').clearRect(0, 0, c.width, c.height); }, 1000); };   // particles hold the icon while the real one fades in
     if (reduce) { showSpeaker(); setRoomOn(true); later(finish, 3200); return; }
     const L = labels.current.map((el) => {
       const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
       return { text: el.dataset.text, x: r.left, baseline: r.top + parseFloat(cs.fontSize) * 0.98 + (r.height - parseFloat(cs.fontSize) * 1.15) / 2, font: `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}` };
     });
     morph({ canvas: canvas.current, labels: L, muted: !sound, onDone: showSpeaker });
-    later(() => setRoomOn(true), 1000);
-    later(finish, 1000 + 7000 + ROOM_MS);                                      // fallback if the room never starts
+    later(finish, 3500 + 9000 + ROOM_MS);                                      // fallback if the room never starts
   };
   const roomReady = useCallback(() => {
     if (ready.current) return; ready.current = true;
@@ -61,9 +60,9 @@ export default function Intro({ onDone }) {
   return (
     <div className={`intro ${stage} ${dark ? 'dark' : ''}`} role="dialog" aria-label="Start the story">
       <div className={`room ${roomOn ? 'on' : ''}`} aria-hidden="true">
-        {roomOn && (
+        {(warm || roomOn) && (
           <Boundary onFail={finish}>
-            <Suspense fallback={null}><Room reduce={reduce} onReady={roomReady} /></Suspense>
+            <Suspense fallback={null}><Room reduce={reduce} onReady={roomReady} play={roomOn} /></Suspense>
           </Boundary>
         )}
         <div className="vig" /><div className="grain" />

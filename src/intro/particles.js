@@ -61,7 +61,7 @@ export function morph({ canvas, labels, muted, color = '#e8e6e1', onDone }) {
       ctx.fillRect(x - p.r / 2, y - p.r / 2, p.r, p.r);
     }
     ctx.globalAlpha = 1;
-    if (allDone && !finished) { finished = true; setTimeout(() => { ctx.clearRect(0, 0, W, H); onDone && onDone(); }, 120); cancelAnimationFrame(raf); return; }
+    if (allDone && !finished) { finished = true; onDone && onDone(); cancelAnimationFrame(raf); return; }
     raf = requestAnimationFrame(frame);
   }
   raf = requestAnimationFrame(frame);

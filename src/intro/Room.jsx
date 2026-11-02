@@ -50,6 +50,12 @@ const clockTex = () => canvasTex(256, 256, (x) => { x.fillStyle = '#b8bbbc'; x.b
 const corkTex = () => canvasTex(256, 192, (x, w, h) => { x.fillStyle = '#5b5348'; x.fillRect(0, 0, w, h); speckle(x, w, h, 5000, .35);
   [[20, 18, 70, 90, '#c9c7c1'], [110, 14, 60, 72, '#b8bfc4'], [182, 26, 54, 64, '#cfcdc7'], [60, 104, 80, 70, '#bdbab4'], [160, 110, 66, 62, '#c4c9cc']].forEach(([a, b, c, d, f], i) => { x.save(); x.translate(a + c / 2, b + d / 2); x.rotate((hash(i) - .5) * .2); x.fillStyle = f; x.fillRect(-c / 2, -d / 2, c, d); x.fillStyle = 'rgba(40,40,40,.5)'; for (let k = 0; k < 6; k++) x.fillRect(-c / 2 + 6, -d / 2 + 10 + k * 9, c - 12 - hash(k + i) * 20, 2); x.fillStyle = '#7a2d29'; x.beginPath(); x.arc(0, -d / 2 + 4, 3, 0, 7); x.fill(); x.restore(); }); });
 
+const keysTex = () => canvasTex(720, 500, (x, w, h) => {
+  x.fillStyle = '#3d4044'; x.fillRect(0, 0, w, h);
+  const rows = [14, 14, 13, 12, 11]; let y = 24;
+  rows.forEach((n, r) => { const kw = (w - 60) / n; for (let i = 0; i < n; i++) { x.fillStyle = '#1d1f21'; x.fillRect(30 + i * kw + 2, y, kw - 4, 46); x.fillStyle = 'rgba(255,255,255,.07)'; x.fillRect(30 + i * kw + 2, y, kw - 4, 4); } y += 54; });
+  x.fillStyle = '#1d1f21'; x.fillRect(130, y, 460, 44); x.fillStyle = '#2f3235'; x.fillRect(250, y + 62, 220, 120); x.strokeStyle = '#1a1b1d'; x.lineWidth = 3; x.strokeRect(250, y + 62, 220, 120);
+});
 /* the answer sheet, as scanned on the laptop: a real-looking paper, red pen all over it */
 function screenTex() {
   return canvasTex(2048, 1280, (x, w, h) => {
@@ -153,7 +159,7 @@ function Room() {
   const [fontReady, setFont] = useState(false);
   useEffect(() => { let on = true; const f = document.fonts; (f ? Promise.all([f.load('200px Caveat', 'Ans 2/30'), f.load('700 60px "Instrument Serif"', 'PAWAR'), f.load('34px "Space Grotesk"', 'Name')]) : Promise.resolve()).catch(() => {}).then(() => on && setFont(true)); return () => { on = false; }; }, []);
   const m = useMemo(() => ({ wall: wallTex(), floor: floorTex(), sheet: linenTex('#4a4f54', '#40454a'), pillow: linenTex('#767a7c', '#6b6f72'), rug: rugTex(), desk: woodTex('#4a4540'), shelf: woodTex('#3c3834'), door: woodTex('#4d4a45'),
-    posters: [posterTex(0), posterTex(1)], clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(),
+    posters: [posterTex(0), posterTex(1)], keys: keysTex(), clock: clockTex(), cork: corkTex(), bin: binGeometry(), blanket: blanketGeometry(), curtain: curtainGeometry(0.62, 1.7), cloth: clothGeometry(),
     paper: [crumple(0.07, 1), crumple(0.08, 2), crumple(0.065, 3), crumple(0.075, 4), crumple(0.06, 5), crumple(0.08, 6), crumple(0.07, 7), crumple(0.06, 8)] }), []);
   const screen = useMemo(() => (fontReady ? screenTex() : null), [fontReady]);
   const glow = useRef(); const dust = useRef(); const gap = useRef();
@@ -244,6 +250,7 @@ function Room() {
         <Bx p={[0.42, 0.58, 0.02]} s={[0.6, 0.16, 0.56]} c="#3f3b36" tex={m.desk} />
         <group position={[-0.08, 0.775, 0.0]} rotation={[0, -0.05, 0]} scale={1.9}>
           <mesh position={[0, 0.01, 0.1]} castShadow><boxGeometry args={[0.38, 0.02, 0.26]} /><meshStandardMaterial color="#4a4c4f" metalness={0.5} roughness={0.5} /></mesh>
+          <mesh position={[0, 0.0212, 0.1]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[0.36, 0.25]} /><meshStandardMaterial map={m.keys} roughness={0.6} /></mesh>
           <group position={[0, 0.02, -0.03]} rotation={[-0.2, 0, 0]}>
             <mesh position={[0, 0.125, 0]} castShadow><boxGeometry args={[0.38, 0.25, 0.012]} /><meshStandardMaterial color="#303234" metalness={0.5} roughness={0.5} /></mesh>
             <mesh position={[0, 0.125, 0.0075]}><planeGeometry args={[0.35, 0.219]} />{screen ? <meshBasicMaterial map={screen} toneMapped={false} /> : <meshBasicMaterial color="#1b1d1f" />}</mesh>
@@ -305,9 +312,10 @@ function Room() {
 }
 
 /* ---------- the camera: wide and still, then it walks toward the bin and looks in ---------- */
-function Rig({ reduce, onReady }) {
+function Rig({ reduce, onReady, play }) {
   const { camera } = useThree(); const t0 = useRef(null);
   useFrame((s) => {
+    if (!play) { camera.position.set(-0.4, 1.5, 3.0); camera.lookAt(0.7, 0.95, -2.6); return; }
     if (t0.current === null) { t0.current = s.clock.elapsedTime; onReady && onReady(); }
     const dbg = new URLSearchParams(location.search).get('roomT');
     const t = dbg !== null ? +dbg : s.clock.elapsedTime - t0.current;
@@ -324,11 +332,11 @@ function Rig({ reduce, onReady }) {
   return null;
 }
 
-export default function RoomCanvas({ reduce, onReady }) {
+export default function RoomCanvas({ reduce, onReady, play }) {
   return (
-    <Canvas shadows={{ type: THREE.PCFSoftShadowMap }} dpr={[1, 1.75]} camera={{ fov: 56, near: 0.05, far: 30, position: [-0.4, 1.5, 3.0] }} gl={{ antialias: true, powerPreference: 'high-performance' }}
+    <Canvas frameloop={play ? 'always' : 'demand'} shadows={{ type: THREE.PCFSoftShadowMap }} dpr={[1, 1.75]} camera={{ fov: 56, near: 0.05, far: 30, position: [-0.4, 1.5, 3.0] }} gl={{ antialias: true, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.25; }}>
-      <Room /><Rig reduce={reduce} onReady={onReady} />
+      <Room /><Rig reduce={reduce} onReady={onReady} play={play} />
     </Canvas>
   );
 }
