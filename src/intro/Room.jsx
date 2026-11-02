@@ -122,10 +122,20 @@ function screenTex() {
 
 /* ---------- little builders ---------- */
 function crumple(r, seed) {
-  let g = new THREE.IcosahedronGeometry(r, 3); g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g, 1e-4); const p = g.attributes.position, v = new THREE.Vector3();
-  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = hash(Math.round(v.x * 40) * 3 + Math.round(v.y * 40) * 17 + Math.round(v.z * 40) * 31 + seed); const ridge = Math.abs(Math.sin(v.x * 70 / r * 0.07 + seed) * Math.sin(v.y * 64 / r * 0.07) * Math.sin(v.z * 80 / r * 0.07 + seed * 2)); v.multiplyScalar(0.8 + n * 0.3 - ridge * 0.14 + (hash(Math.round(v.x * 90) + Math.round(v.y * 90) * 7 + seed * 13) - .5) * .12); p.setXYZ(i, v.x, v.y * (0.9 + hash(seed) * .2), v.z); }
+  /* cellular (Voronoi) displacement: flat-ish facets bounded by sharp creases, like a real paper ball */
+  let g = new THREE.IcosahedronGeometry(r, 4); g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g, 1e-4); const p = g.attributes.position;
+  const N = 22, S = []; for (let i = 0; i < N; i++) { const z = hash(seed * 31 + i * 7) * 2 - 1, a = hash(seed * 17 + i * 13 + 3) * 6.283, q = Math.sqrt(1 - z * z); S.push([q * Math.cos(a), z, q * Math.sin(a), 0.84 + hash(seed + i * 5) * 0.22]); }
+  const col = new Float32Array(p.count * 3), v = new THREE.Vector3(), ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i).normalize(); let d1 = 9, d2 = 9, k = 0;
+    for (let j = 0; j < N; j++) { const d = Math.acos(Math.max(-1, Math.min(1, v.x * S[j][0] + v.y * S[j][1] + v.z * S[j][2]))); if (d < d1) { d2 = d1; d1 = d; k = j; } else if (d < d2) d2 = d; }
+    const crease = 1 - ss(0, 0.16, d2 - d1), fine = (hash(Math.round(v.x * 60) * 3 + Math.round(v.y * 60) * 17 + Math.round(v.z * 60) * 31 + seed) - 0.5) * 0.04;
+    const sh = 1 - crease * 0.42 - (S[k][3] - 0.95) * 0.5; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = sh;
+    const rr = r * (S[k][3] - crease * 0.16 + fine);
+    p.setXYZ(i, v.x * rr, v.y * rr * (0.92 + hash(seed) * 0.16), v.z * rr);
+  }
   const uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); uv[i * 2] = (Math.atan2(z, x) / (2 * Math.PI) + 0.5) * 1.4 + seed * 0.13; uv[i * 2 + 1] = (y / r) * 0.5 + 0.5 + seed * 0.07; }
-  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.computeVertexNormals(); return g;
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
 }
 function binGeometry() {
   const pts = [[0, 0.012], [0.195, 0.012], [0.21, 0.0], [0.222, 0.0], [0.226, 0.03], [0.23, 0.06], [0.3, 0.55], [0.312, 0.57], [0.322, 0.585], [0.318, 0.605], [0.305, 0.608], [0.296, 0.595], [0.292, 0.575], [0.286, 0.56], [0.222, 0.07], [0.2, 0.05], [0, 0.05]].map(([a, b]) => new THREE.Vector2(a, b));
@@ -222,7 +232,7 @@ function Room() {
     if (gap.current) gap.current.intensity = 0.9 + Math.sin(t * 0.35) * 0.12;
     if (dust.current) dust.current.rotation.y = t * 0.01, dust.current.position.y = Math.sin(t * 0.2) * 0.05;
   });
-  const paperMat = <meshStandardMaterial map={m.ptex} color="#e0ddd7" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.2} {...D} />;
+  const paperMat = <meshStandardMaterial vertexColors map={m.ptex} color="#e0ddd7" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.08} {...D} />;
   const W = 3.3, DZ = -3.6;
   return (
     <>
@@ -360,7 +370,7 @@ function Room() {
           <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i) * 3, hash(i + 4) * 3, 0]} castShadow receiveShadow>{paperMat}</mesh>)}
       </group>
       {[[1.3, 0.06, -2.85, 6], [1.55, 0.06, -2.2, 7], [2.2, 0.06, -2.7, 1], [1.95, 0.06, -3.45, 2], [0.95, 0.06, -1.9, 3]].map(([x, y, z, k], i) =>
-        <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i + 20) * 3, hash(i + 24) * 3, 0]} castShadow receiveShadow><meshStandardMaterial map={m.ptex} color="#d3d0ca" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.18} {...D} /></mesh>)}
+        <mesh key={i} geometry={m.paper[k]} position={[x, y, z]} rotation={[hash(i + 20) * 3, hash(i + 24) * 3, 0]} castShadow receiveShadow><meshStandardMaterial vertexColors map={m.ptex} color="#d3d0ca" emissive="#ffffff" emissiveMap={m.ptex} emissiveIntensity={0.08} {...D} /></mesh>)}
 
       {/* right wall: uniform on a hook, a poster, a clock */}
       <group position={[W - 0.06, 0, -1.2]} rotation={[0, -Math.PI / 2, 0]}>
