@@ -25,7 +25,7 @@ export function morph({ canvas, labels, muted, color = '#e8e6e1', onDone }) {
     src = src.concat(sample((x) => { x.font = l.font; x.fillStyle = '#fff'; x.textBaseline = 'alphabetic'; x.fillText(l.text, l.x, l.baseline); }, W, H, 3));
   }
   // target points: the speaker, 44px, top-right, same place as the real button
-  const S = 44, ox = W - 18 - S - 6, oy = 18 - 2;
+  const S = 44, ox = W - 18 - S, oy = 16;
   const tgt = sample((x) => {
     x.translate(ox, oy); x.scale(S / 24, S / 24); x.strokeStyle = x.fillStyle = '#fff'; x.lineWidth = 1.9; x.lineJoin = x.lineCap = 'round';
     x.stroke(new Path2D(SPEAKER.body)); if (!muted) SPEAKER.waves.forEach((p) => x.stroke(new Path2D(p))); else x.stroke(new Path2D(SPEAKER.slash));
